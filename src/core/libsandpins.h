@@ -2,7 +2,6 @@
 // ****************************************
 // LIBS ***********************************
 
-#include <Arduino.h>
 #include "WiFi.h"
 #include "Audio.h"
 #include <WiFiUdp.h>
@@ -16,6 +15,8 @@
 #include "addons/RTDBHelper.h"
 #include <ArduinoJson.h>
 #include "uRTCLib.h"
+
+#include <PETVET_config.h>
 
 // ****************************************
 // Core Variables *************************

@@ -1,35 +1,28 @@
+
 #include <core/chooser.h>
 
 #ifdef PetVetVeriGonder
-
-#include <Arduino.h>
 #include <WiFi.h>
 #include <Firebase_ESP_Client.h>
 #include "addons/TokenHelper.h"
 #include "addons/RTDBHelper.h"
 #include <ArduinoJson.h>
 
-/////////////////////////////////////////////// Wifi değişkenleri
+#include <PETVET_config.h>
 
-String ssid = "10_Numara";
-String pass = "Daire_on10";
+/////////////////////////////////////////////// Wifi değişkenleri
 
 #define WIFI_SSID ssid
 #define WIFI_PASSWORD pass
 
 /////////////////////////////////////////////// Sunucu Değişkenleri
 
-String email = "kaya.samed@outlook.com";
-String email_pass = "SamCo1234";
+#define USER_EMAIL email
+#define USER_PASSWORD email_pass
 
 String uid, VeriYolu;
 int id_count = 0;
 bool signupOK = false;
-
-#define API_KEY "AIzaSyBEet3NVwQrrLnu8ZuDE5NpHvtEcAnLdqY"
-#define DATABASE_URL "https://petvet-001-default-rtdb.europe-west1.firebasedatabase.app/"
-#define USER_EMAIL email
-#define USER_PASSWORD email_pass
 
 FirebaseData fbdo;
 FirebaseAuth auth;

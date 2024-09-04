@@ -6,12 +6,8 @@
 Audio audio;
 /////////////////////////////////////////////// Wifi değişkenleri
 
-String ssid = "";
-String pass = "";
-
 #define WIFI_SSID ssid
 #define WIFI_PASSWORD pass
-
 /////////////////////////////////////////////// NTP Sunucu ayarları
 
 const long utcOffsetInSeconds = 10800; // Türkiye için UTC+3
@@ -32,17 +28,12 @@ int currentDayofWeek, currentYear, currentMount, CurrentDay, currentHour, curren
 
 /////////////////////////////////////////////// Sunucu Değişkenleri
 
-String email = "";
-String email_pass = "";
+#define USER_EMAIL email
+#define USER_PASSWORD email_pass
 
 String uid, VeriYolu;
 int id_count = 0;
 bool signupOK = false;
-
-#define API_KEY ""
-#define DATABASE_URL ""
-#define USER_EMAIL email
-#define USER_PASSWORD email_pass
 
 FirebaseData fbdo;
 FirebaseAuth auth;
