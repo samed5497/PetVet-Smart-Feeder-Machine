@@ -1,0 +1,24 @@
+
+EKLENECEKLER
+- Cihaz kapalıykende saatı bilsin rtc
+- Son manue besleme vakti  gönderilecek.
+- Versiyon ve yazılım açıklamaları yaz. 
+- Geliştirici bilgileri ekle. 
+- GİTHUB dosylarını hazırla
+- setting dizinini bir üste al ve kodu düzenle
+- Server alarm kodunu tanımla ve kod varsa hata bitince onu sil 
+
+
+
+
+PetVET_0.3 Eklenecekler
+
+- OTA GÜNCELLEME 
+- TaskFeederFlowControl SENSÖRDEN VERİ ALMA EKLENECEK 
+
+
+TAMAMLANAN
+- Pil degerlerini tanımla. 
+- Su çalışma suresınıde ayarla
+- manuel besleme porsiyonunu kontrol et 
+- firebase altyapı tamalndı
