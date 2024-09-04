@@ -32,6 +32,7 @@ This project is an automated pet feeding machine designed to manage feeding sche
 - **Firebase Realtime Database**: Stores user settings, feeding schedules, and real-time data from the machine.
 
 ![Alt text](Design/images/3.jpg)
+
 ![Alt text](Design/images/4.jpg)
 
 ### Setup and Configuration
