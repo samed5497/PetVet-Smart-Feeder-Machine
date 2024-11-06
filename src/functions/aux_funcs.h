@@ -106,7 +106,7 @@ void colorWipe(uint32_t c, uint8_t wait)
     {
         strip.setPixelColor(i, c);
         strip.show();
-        vTaskDelay (wait);
+        vTaskDelay(wait);
     }
 }
 
@@ -115,26 +115,26 @@ void colorWipe(uint32_t c, uint8_t wait)
 void Feeder_Sound()
 {
     tone(buzzer_pin, 500); // 1000 Hz frekansta ses üret
-    vTaskDelay (50);             // 250 milisaniye bekle
+    vTaskDelay(50);        // 250 milisaniye bekle
     noTone(buzzer_pin);    // Sesi kapat
-    vTaskDelay (50);             // 250 milisaniye bekle
+    vTaskDelay(50);        // 250 milisaniye bekle
     tone(buzzer_pin, 500); // 1000 Hz frekansta ses üret
-    vTaskDelay (50);             // 250 milisaniye bekle
+    vTaskDelay(50);        // 250 milisaniye bekle
     noTone(buzzer_pin);    // Sesi kapat
-    vTaskDelay (50);             // 250 milisaniye bekle
+    vTaskDelay(50);        // 250 milisaniye bekle
     tone(buzzer_pin, 500); // 1000 Hz frekansta ses üret
-    vTaskDelay (50);             // 250 milisaniye bekle
+    vTaskDelay(50);        // 250 milisaniye bekle
     noTone(buzzer_pin);    // Sesi kapat
 }
 
 void Water_Feeder_Sound()
 {
     tone(buzzer_pin, 1000); // 1000 Hz frekansta ses üret
-    vTaskDelay (100);             // 250 milisaniye bekle
+    vTaskDelay(100);        // 250 milisaniye bekle
     noTone(buzzer_pin);     // Sesi kapat
-    vTaskDelay (100);             // 250 milisaniye bekle
+    vTaskDelay(100);        // 250 milisaniye bekle
     tone(buzzer_pin, 1000); // 1000 Hz frekansta ses üret
-    vTaskDelay (100);             // 250 milisaniye bekle
+    vTaskDelay(100);        // 250 milisaniye bekle
     noTone(buzzer_pin);     // Sesi kapat
 }
 
@@ -187,21 +187,21 @@ void Epprom_Update_From_PC()
 
     // Yıl, ay ve günü EEPROM'a yazma
     writeEEPROM(60, 24); // Yılı iki haneli olarak kaydet (örneğin 2024 -> 24)
-    vTaskDelay (5);
+    vTaskDelay(5);
     writeEEPROM(50, 8); // Ayı kaydet
-    vTaskDelay (5);
+    vTaskDelay(5);
     writeEEPROM(40, 17); // Günü kaydet
-    vTaskDelay (5);
+    vTaskDelay(5);
     writeEEPROM(70, 6);
-    vTaskDelay (5);
+    vTaskDelay(5);
 
     // Saat, dakika ve saniyeyi EEPROM'a yazma
     writeEEPROM(10, 0); // Saati kaydet
-    vTaskDelay (5);
+    vTaskDelay(5);
     writeEEPROM(20, 0); // Dakikayı kaydet
-    vTaskDelay (5);
+    vTaskDelay(5);
     writeEEPROM(30, 15); // Saniyeyi kaydet
-    vTaskDelay (5);
+    vTaskDelay(5);
 }
 
 // RTC değerlerini EEPROM'a yazma işlemi
@@ -210,33 +210,33 @@ void writeRTCtoEEPROM()
     if (currentDayofWeek != readEEPROM(70))
     {
         writeEEPROM(70, rtc.dayOfWeek());
-        vTaskDelay (5);
+        vTaskDelay(5);
         writeEEPROM(40, rtc.day());
-        vTaskDelay (5);
+        vTaskDelay(5);
         writeEEPROM(50, rtc.month());
-        vTaskDelay (5);
+        vTaskDelay(5);
         writeEEPROM(60, rtc.year());
-        vTaskDelay (5);
+        vTaskDelay(5);
         Serial.printf("[Info]: Hafızadaki Gün Güncellendi: %d\n", currentDayofWeek);
     }
     if (currentHour != readEEPROM(10))
     {
         writeEEPROM(10, rtc.hour());
-        vTaskDelay (5);
+        vTaskDelay(5);
         Serial.printf("[Info]: Hafızadaki Saat Güncellendi: %d\n", currentHour);
         Local_Time_Report = true;
     }
     if (currentMinute != readEEPROM(20))
     {
         writeEEPROM(20, rtc.minute());
-        vTaskDelay (5);
+        vTaskDelay(5);
         Serial.printf("[Info]: Hafızadaki Dakika Güncellendi: %d\n", currentMinute);
         // device_server_report = true;
     }
     if (currentSecond != readEEPROM(30))
     {
         writeEEPROM(30, rtc.second());
-        vTaskDelay (5);
+        vTaskDelay(5);
         Serial.printf("[Info]: Hafızadaki Saniye Güncellendi: %d\n", currentSecond);
     }
     Serial.println();
@@ -247,9 +247,9 @@ void writeRTCtoEEPROM()
     vTaskDelay (5);
     writeEEPROM(30, currentSecond);
     vTaskDelay (5);
-    writeEEPROM(40, CurrentDay);
+    writeEEPROM(40, currentDay);
     vTaskDelay (5);
-    writeEEPROM(50, currentMount);
+    writeEEPROM(50, currentMonth);
     vTaskDelay (5);
     writeEEPROM(60, currentYear);
     vTaskDelay (5);
@@ -266,8 +266,8 @@ void ZamanGuncelleYazdir()
 
     currentDayofWeek = rtc.dayOfWeek();
     currentYear = rtc.year();
-    currentMount = rtc.month();
-    CurrentDay = rtc.day();
+    currentMonth = rtc.month();
+    currentDay = rtc.day();
     currentSecond = rtc.second();
     currentMinute = rtc.minute();
     currentHour = rtc.hour();
@@ -372,7 +372,7 @@ void Ready_to_Send_Datas_1()
             Serial.print("[ERROR]: Connection FAILED. ");
             Serial.println("REASON: " + fbdo.errorReason());
         }
-        vTaskDelay (5);
+        vTaskDelay(5);
     }
 
     ///////////////////////////////////////////////////////////////////////
@@ -391,7 +391,7 @@ void Ready_to_Send_Datas_1()
             Serial.print("[ERROR]: Connection FAILED. ");
             Serial.println("REASON: " + fbdo.errorReason());
         }
-        vTaskDelay (1);
+        vTaskDelay(1);
     }
 }
 
@@ -402,17 +402,19 @@ void Ready_to_Send_Datas_2()
         VeriYolu.clear();
         VeriYolu.concat(uid);
         VeriYolu.concat("/device/lastreport");
+
         // Değişkenleri String'e dönüştür
         String yearStr = String(currentYear);
-        String monthStr = String(currentMount);
-        String dayStr = String(CurrentDay);
+        String monthStr = String(currentMonth); // 'currentMonth' yerine 'currentMonth' kullanıldı.
+        String dayStr = String(currentDay);     // 'currentDay' değil 'currentDay' olarak düzenlendi.
         String hourStr = String(currentHour);
         String minuteStr = String(currentMinute);
         String secondStr = String(currentSecond);
 
         // Tarih ve saati uygun formatta birleştir
-        String Saat = yearStr + "/" + monthStr + "/" + dayStr + " " +
+        String Saat = dayStr + "/" + monthStr + "/" + yearStr + " " +
                       hourStr + ":" + minuteStr + ":" + secondStr;
+
         if (Firebase.RTDB.setString(&fbdo, VeriYolu, Saat))
         {
             Local_Time_Report = false;
@@ -422,7 +424,7 @@ void Ready_to_Send_Datas_2()
             Serial.print("[ERROR]: Connection FAILED. ");
             Serial.println("REASON: " + fbdo.errorReason());
         }
-        vTaskDelay (1);
+        vTaskDelay(1); // Boşluk kaldırıldı
     }
 
     ///////////////////////////////////////////////////////////////////////
@@ -440,10 +442,10 @@ void Ready_to_Send_Datas_2()
             Serial.print("[ERROR]: Connection FAILED. ");
             Serial.println("REASON: " + fbdo.errorReason());
         }
-        vTaskDelay (1);
+        vTaskDelay(1);
     }
 
-// EK - BURAYI DÜZELT
+    // EK - BURAYI DÜZELT
     /*
        if (last_manuel_mod_feed_time != SERVER_last_manuel_mod_feed_time)
        {
@@ -476,7 +478,7 @@ void Ready_to_Send_Datas_2()
             Serial.print("[ERROR]: Connection FAILED. ");
             Serial.println("REASON: " + fbdo.errorReason());
         }
-        vTaskDelay (1);
+        vTaskDelay(1);
     }
 
     ///////////////////////////////////////////////////////////////////////
@@ -494,7 +496,7 @@ void Ready_to_Send_Datas_2()
             Serial.print("[ERROR]: Connection FAILED. ");
             Serial.println("REASON: " + fbdo.errorReason());
         }
-        vTaskDelay (1);
+        vTaskDelay(1);
     }
 
     ///////////////////////////////////////////////////////////////////////
@@ -512,7 +514,7 @@ void Ready_to_Send_Datas_2()
             Serial.print("[ERROR]: Connection FAILED. ");
             Serial.println("REASON: " + fbdo.errorReason());
         }
-        vTaskDelay (1);
+        vTaskDelay(1);
     }
 
     ///////////////////////////////////////////////////////////////////////

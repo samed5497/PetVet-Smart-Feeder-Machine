@@ -186,7 +186,7 @@ void TaskTimeControl(void *pvParameters)
                 currentHour = timeClient.getHours();
                 currentMinute = timeClient.getMinutes();
                 currentSecond = timeClient.getSeconds();
-                rtc.set(currentSecond, currentMinute, currentHour, currentDayofWeek, CurrentDay, currentMount, currentYear);
+                rtc.set(currentSecond, currentMinute, currentHour, currentDayofWeek, currentDay, currentMonth, currentYear);
                 Serial.println("[Info]: Cihaz saati Güncellendi.");
                 Serial.println();
                 timeClient.end(); // NTP istemcisini BİTİRME
@@ -268,13 +268,13 @@ void TaskSerialPortReport(void *pvParameters)
                 report = false;
                 Serial.println("[Info]: Serial Port Active!");
                 tone(buzzer_pin, 1000); // 1000 Hz frekansta ses üret
-                vTaskDelay (100);             // 100 milisaniye bekle
+                vTaskDelay(100);        // 100 milisaniye bekle
                 noTone(buzzer_pin);     // Sesi kapat
                 Serial.println();
             }
 
             Serial.printf("----------  Saat: %02d:%02d:%02d *** Tarih: %02d/%02d/20%02d *** %d.gün\n\n",
-                          currentHour, currentMinute, currentSecond, CurrentDay, currentMount, currentYear, currentDayofWeek);
+                          currentHour, currentMinute, currentSecond, currentDay, currentMonth, currentYear, currentDayofWeek);
 
             if (hata_kodu.length() > 2)
             {
@@ -322,7 +322,7 @@ void TaskSerialPortReport(void *pvParameters)
             {
                 Serial.println("[Info]: Serial Port Disabled.");
                 tone(buzzer_pin, 1000); // 1000 Hz frekansta ses üret
-                vTaskDelay (100);             // 100 milisaniye bekle
+                vTaskDelay(100);        // 100 milisaniye bekle
                 noTone(buzzer_pin);     // Sesi kapat
                 Serial.flush();
                 Serial.end();
@@ -386,8 +386,8 @@ void TaskFeeder(void *pvParameters)
 
             // Değişkenleri String'e dönüştür
             String yearStr = String(currentYear);
-            String monthStr = String(currentMount);
-            String dayStr = String(CurrentDay);
+            String monthStr = String(currentMonth);
+            String dayStr = String(currentDay);
             String hourStr = String(currentHour);
             String minuteStr = String(currentMinute);
             String secondStr = String(currentSecond);
@@ -461,7 +461,7 @@ void TaskBatteryControl(void *pvParameters)
         for (int i = 0; i < ornekleme_sayisi; i++)
         {
             totalVoltage += (analogRead(batt_pin + 0.1)); // normalde 0.55 v diyot düşümü var ancak orantılayınca bu sekilde oluyor.
-            vTaskDelay (5);                                     // Her okuma arasında kısa bir gecikme
+            vTaskDelay(5);                                // Her okuma arasında kısa bir gecikme
         }
 
         float avgReading = totalVoltage / ornekleme_sayisi;
@@ -608,8 +608,8 @@ void TaskButtonControl(void *pvParameters)
 
                 // Değişkenleri String'e dönüştür
                 String yearStr = String(currentYear);
-                String monthStr = String(currentMount);
-                String dayStr = String(CurrentDay);
+                String monthStr = String(currentMonth);
+                String dayStr = String(currentDay);
                 String hourStr = String(currentHour);
                 String minuteStr = String(currentMinute);
                 String secondStr = String(currentSecond);

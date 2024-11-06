@@ -24,7 +24,7 @@ const int HOUR_ADDRESS = 4;
 const int MINUTE_ADDRESS = 8;
 const int SECOND_ADDRESS = 12;
 
-int currentDayofWeek, currentYear, currentMount, CurrentDay, currentHour, currentMinute, currentSecond;
+int currentDayofWeek, currentYear, currentMonth, currentDay, currentHour, currentMinute, currentSecond;
 
 /////////////////////////////////////////////// Sunucu Değişkenleri
 
@@ -45,7 +45,6 @@ int motor_lap_count,
     wtr_lvl, noisy = 0;
 bool switch_durum, feed_mode, Time_Update, first_time_update = false;
 bool alarm_status, sikisma_alarm, noisy_alarm, max_water_alarm, min_water_alarm, wifi_alarm = false;
-bool report_mode = true;
 String hata_kodu = "";
 
 unsigned long buttonPressStartTime = 0;
@@ -82,7 +81,7 @@ int runing_program, last_feed_minute = 0; // vakti gelen görevin id si.
 int manuel_feeder_portion = 5;
 
 bool device_server_report, manuel_feeder_status, manuel_water_status, Local_Time_Report, water_timer = false;
-bool manuel_feeder_status_report, manuel_water_status_report =true;
+bool manuel_feeder_status_report, manuel_water_status_report = true;
 
 int manuel_water_portion = 10; // second
 int water_work_time = 1;       // Minute

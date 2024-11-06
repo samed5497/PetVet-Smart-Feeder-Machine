@@ -23,10 +23,10 @@ void Wifi_Starting()
         }
 
         Serial.print(".");
-        vTaskDelay (250);
+        vTaskDelay(250);
         colorWipe(strip.Color(255, 255, 255), 0);
         Serial.print(".");
-        vTaskDelay (250);
+        vTaskDelay(250);
         colorWipe(strip.Color(0, 0, 0), 0);
         count++;
     }
@@ -51,14 +51,14 @@ void Firebase_Server_Starting()
     while ((auth.token.uid) == "" && id_count < 75)
     {
         Serial.print('.');
-        vTaskDelay (250);
+        vTaskDelay(250);
         id_count++;
     }
     if ((auth.token.uid) == "")
     {
         Serial.println("***HATA! - Zaman aşımına uğrandı.");
         Serial.println();
-        vTaskDelay (500);
+        vTaskDelay(500);
     }
     else
     {
@@ -112,7 +112,7 @@ void Firebase_Server_Starting()
 void Amplificator_Starting()
 {
     audio.setPinout(I2S_BCLK_pin, I2S_LRCLK_pin, I2S_DIN_pin);
-    audio.setVolume(map(Speaker_Volume, 0, 100, 0, 21));                // 0...21
+    audio.setVolume(map(Speaker_Volume, 0, 100, 0, 21)); // 0...21
     // audio.connecttohost("http://mp3.ffh.de/radioffh/hqlivestream.mp3"); //  128k mp3
 }
 
@@ -129,8 +129,8 @@ void RTC_Starting_Offline()
 
     currentDayofWeek = readEEPROM(70);
     currentYear = readEEPROM(60);
-    currentMount = readEEPROM(50);
-    CurrentDay = readEEPROM(40);
+    currentMonth = readEEPROM(50);
+    currentDay = readEEPROM(40);
     currentSecond = readEEPROM(30);
     currentMinute = readEEPROM(20);
     currentHour = readEEPROM(10);
@@ -139,7 +139,7 @@ void RTC_Starting_Offline()
     //
     //
     // Yalnızca bir kez kullanın, ardından devre dışı bırakın
-    rtc.set(currentSecond, currentMinute, currentHour, currentDayofWeek, CurrentDay, currentMount, currentYear);
+    rtc.set(currentSecond, currentMinute, currentHour, currentDayofWeek, currentDay, currentMonth, currentYear);
     // rtc.set(second, minute, hour, dayOfWeek, dayOfMonth, month, year)
     //
     //
@@ -198,8 +198,8 @@ void RTC_Starting_Online()
 
     currentDayofWeek = timeClient.getDay();
     currentYear = readEEPROM(60);
-    currentMount = readEEPROM(50);
-    CurrentDay = readEEPROM(40);
+    currentMonth = readEEPROM(50);
+    currentDay = readEEPROM(40);
     currentSecond = timeClient.getSeconds();
     currentMinute = timeClient.getMinutes();
     currentHour = timeClient.getHours();
@@ -207,7 +207,7 @@ void RTC_Starting_Online()
     //
     //
     // Yalnızca bir kez kullanın, ardından devre dışı bırakın
-    rtc.set(currentSecond, currentMinute, currentHour, currentDayofWeek, CurrentDay, currentMount, currentYear);
+    rtc.set(currentSecond, currentMinute, currentHour, currentDayofWeek, currentDay, currentMonth, currentYear);
     // rtc.set(second, minute, hour, dayOfWeek, dayOfMonth, month, year)
     //
     //
@@ -261,13 +261,13 @@ void Starting_SerialandApps()
     Serial.print(" / ");
     Serial.println(VERSIYON);
     Serial.printf("\r\n");
-    vTaskDelay (10);
+    vTaskDelay(10);
     Serial.flush();
     digitalWrite(buzzer_pin, HIGH);
-    vTaskDelay (250);
+    vTaskDelay(250);
     digitalWrite(buzzer_pin, LOW);
     tone(buzzer_pin, 1000); // 1000 Hz frekansta ses üret
-    vTaskDelay (250);             // 250 milisaniye bekle
+    vTaskDelay(250);        // 250 milisaniye bekle
     noTone(buzzer_pin);     // Sesi kapat
 
     digitalWrite(m1_en_pin, LOW);
