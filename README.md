@@ -7,6 +7,8 @@ Copyright (c) 2024 Samed Kaya
 
 ![Alt text](Design/images/1.jpg)
 
+Design Files: https://grabcad.com/library/petvet-smart-feeder-machine-by-s-kaya-1
+
 ## English
 
 ### Project Overview
