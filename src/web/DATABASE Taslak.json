@@ -1,0 +1,93 @@
+{
+  "OXgE1tfjCnMF4jIiyry78HSdhfH3": {
+    "device": {
+      "alarmcode": " 150 -",
+      "batterylevel": 100,
+      "foodlevel": 9,
+      "ipadress": "192.168.1.152",
+      "lastmanuelfeedtime": "",
+      "lastreport": "24/11/20 19:1:12",
+      "macadress": "E8:31:CD:1F:33:78",
+      "mail": "kaya.samed@outlook.com",
+      "waterlevel": 0
+    },
+    "programs": {
+      "manuel": {
+        "feederportion": 3,
+        "manuelfeed": false,
+        "manuelwater": false,
+        "waterportion": 10
+      },
+      "oto": {
+        "program1": {
+          "hour": 7,
+          "minute": 0,
+          "number": 1,
+          "portion": 4,
+          "status": true
+        },
+        "program2": {
+          "hour": 13,
+          "minute": 30,
+          "number": 2,
+          "portion": 4,
+          "status": true
+        },
+        "program3": {
+          "hour": 19,
+          "minute": 0,
+          "number": 3,
+          "portion": 4,
+          "status": true
+        },
+        "program4": {
+          "hour": 1,
+          "minute": 0,
+          "number": 4,
+          "portion": 3,
+          "status": true
+        },
+        "program5": {
+          "hour": 12,
+          "minute": 15,
+          "number": 5,
+          "portion": 6,
+          "status": false
+        },
+        "program6": {
+          "hour": 16,
+          "minute": 31,
+          "number": 6,
+          "portion": 7,
+          "status": false
+        },
+        "program7": {
+          "hour": 14,
+          "minute": 45,
+          "number": 7,
+          "portion": 8,
+          "status": false
+        },
+        "program8": {
+          "hour": 13,
+          "minute": 12,
+          "number": 8,
+          "portion": 5,
+          "status": false
+        },
+        "program9": {
+          "hour": 0,
+          "minute": 58,
+          "number": 9,
+          "portion": 2,
+          "status": false
+        },
+        "waterrefleshtime": 10
+      }
+    },
+    "settings": {
+      "serialport": false,
+      "soundvolume": 100
+    }
+  }
+}
