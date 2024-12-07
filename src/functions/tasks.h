@@ -1,7 +1,7 @@
 #include <functions/setup.h>
 
 // ****************************************
-// SETUP ***********************************
+// TASKS ***********************************
 
 void TaskServerConnection(void *pvParameters)
 {
@@ -10,11 +10,12 @@ void TaskServerConnection(void *pvParameters)
         if (Firebase.ready() && signupOK)
         {
 
-            Ready_to_Send_Datas_1(); // Değişmesi gereken data vars ona bakacak.
+            ReadyToSendDatas1(); // Değişmesi gereken data vars ona bakacak.
 
             // Firebase'den tüm gerekli verileri tek seferde çek
             VeriYolu.clear();
-            VeriYolu.concat(uid);
+            VeriYolu = uid + "/PetVet/DEVICE" + String(DEVICE_ID);
+
             if (Firebase.RTDB.getJSON(&fbdo, VeriYolu))
             {
                 Serial.printf("[Info]: //////////// Data Received!\n\n");
@@ -113,7 +114,7 @@ void TaskServerConnection(void *pvParameters)
                 Serial.println("REASON: " + fbdo.errorReason());
             }
 
-            Ready_to_Send_Datas_2(); // Gönderilecek datalar
+            ReadyToSendDatas2(); // Gönderilecek datalar
 
             Serial.printf("[Info]: //////////// Data Sended!\n\n");
 
@@ -164,56 +165,74 @@ void TaskTimeControl(void *pvParameters)
     while (true)
     {
         currentMillis = millis();
-        ZamanGuncelleYazdir();
 
-        if (millis() > 7500 && millis() < 10000 and first_time_update)
+        if (WiFi.status() != WL_CONNECTED) // bağlantı kopması durumundaysa alarmı aç
         {
-            Time_Update = true;
-            first_time_update = false;
+            wifi_alarm = true;
+#if defined(WiFi_clock)
+            NTPTimeUpdateOffline();
+
+#elif defined(WiFi_and_RTC_clock)
+
+            RTCTimeUpdate();
+#endif
         }
 
-        if (WiFi.status() == WL_CONNECTED) // WİFİ BAĞLI OLARAK DEVAM EDİYORSA
+        else if (WiFi.status() == WL_CONNECTED) // WİFİ BAĞLI OLARAK DEVAM EDİYORSA
         {
+            NTPTimeUpdate();
+            LocalClockControl = false;
+
             if (wifi_alarm)
             {
-                timeClient.begin(); // NTP istemcisini başlatma
-
                 wifi_alarm = false; // wifi bağlıysa alarmı kapat
                 removeErrorCode(" 100 -");
-
-                timeClient.update();
-                currentDayofWeek = timeClient.getDay();
-                currentHour = timeClient.getHours();
-                currentMinute = timeClient.getMinutes();
-                currentSecond = timeClient.getSeconds();
-                rtc.set(currentSecond, currentMinute, currentHour, currentDayofWeek, currentDay, currentMonth, currentYear);
-                Serial.println("[Info]: Cihaz saati Güncellendi.");
-                Serial.println();
-                timeClient.end(); // NTP istemcisini BİTİRME
             }
         }
-        else if (WiFi.status() != WL_CONNECTED && !Time_Update) // bağlantı kopması durumundaysa alarmı aç
-        {
-            timeClient.end(); // NTP istemcisini BİTİRME
-            Time_Update = true;
-            wifi_alarm = true;
-        }
-        else // hiç bağlantı yoksa bunu yap.
-        {
-        }
 
+        /*
+         else if (WiFi.status() != WL_CONNECTED && !EEPROM_Time_Update) // bağlantı kopması durumundaysa alarmı aç
+         {
+ #if defined(WiFi_clock)
+             timeClient.update();
+             currentDayofWeek = timeClient.getDay();
+             currentHour = timeClient.getHours();
+             currentMinute = timeClient.getMinutes();
+             currentSecond = timeClient.getSeconds();
+ #elif defined(WiFi_and_RTC_clock)
+             timeClient.update();
+             currentDayofWeek = timeClient.getDay();
+             currentHour = timeClient.getHours();
+             currentMinute = timeClient.getMinutes();
+             currentSecond = timeClient.getSeconds();
+ #endif
+
+             EEPROM_Time_Update = true;
+             wifi_alarm = true;
+         }
+         else // hiç bağlantı yoksa bunu yap.
+         {
+         }
+ */
+
+        if (currentMillis > 7500 && currentMillis < 30000 and first_time_update)
+        {
+            EEPROM_Time_Update = true;
+            first_time_update = false;
+        }
         if (currentMillis - previousMinuteMillis >= 60000) // MINUTE_INTERVAL
         {
             previousMinuteMillis = currentMillis;
-            Time_Update = true;
-            if (Time_Update) // //  hafızadaki veriyi güncelle
-            {
-                writeRTCtoEEPROM();
-                Time_Update = false;
-            }
+            EEPROM_Time_Update = true;
         }
 
-        Feed_Time_Tracking_Fonction(); // Kontrol edilecek zamanlara göre besleme modunu ayarla
+        if (EEPROM_Time_Update) // //  hafızadaki veriyi güncelle
+        {
+            writeTimetoEEPROM();
+            EEPROM_Time_Update = false;
+        }
+
+        FeedTimeTrackingFunction(); // Kontrol edilecek zamanlara göre besleme modunu ayarla
 
         vTaskDelay(1000 / portTICK_PERIOD_MS); // 1 saniyede bir güncelleme
     }
@@ -221,6 +240,7 @@ void TaskTimeControl(void *pvParameters)
 
 void TaskMicControl(void *pvParameters)
 {
+    // [BUILDING] = bu kısım tamamen kontrol edilip havlama tespiti yapılacak.
     while (true)
     {
         noisy = analogRead(mic_pin);
@@ -314,7 +334,8 @@ void TaskSerialPortReport(void *pvParameters)
             }
 
             int32_t rssi = WiFi.RSSI();
-            Serial.printf(" ~ WiFi RSSI       : %d dBm\n\n", rssi);
+            Serial.printf(" ~ WiFi RSSI       : %d dBm\n", rssi);
+            Serial.printf(" ~ Device ID       : %d\n\n\n", DEVICE_ID);
         }
         else
         {
@@ -340,15 +361,15 @@ void TaskFeeder(void *pvParameters)
     {
         if (feed_mode)
         {
-            Feeder_Sound();
+            FeederSound();
 
             ilk_temas = millis();
             son_tiklama_zamani = millis();
-            motoru_baslat(true);
+            StartMotor(true);
 
             while (motor_lap_count < target_motor_lap_count[runing_program]) // Her programın porsiyonu, manuel porsyonun tur sayısıyla çarpılıyor.
             {
-                donme_kontrol();
+                TurningControl();
             }
 
             son_temas = millis();
@@ -357,20 +378,20 @@ void TaskFeeder(void *pvParameters)
 
             while (digitalRead(switch_pin) == HIGH)
             {
-                motoru_baslat(true);
+                StartMotor(true);
             }
 
             vTaskDelay(10 / portTICK_PERIOD_MS); // 100 Hz
 
             while (digitalRead(switch_pin) == HIGH)
             {
-                motoru_baslat(true);
+                StartMotor(true);
             }
             Serial.print("DURDU. :");
             Serial.println(millis());
             Serial.println();
 
-            motoru_durdur();
+            StopMotor();
             motor_lap_count = 0;
 
             feed_mode = false;
@@ -398,7 +419,7 @@ void TaskFeeder(void *pvParameters)
 
             last_manuel_mod_feed_time = Saat;
 
-            // Feeder_Sound();
+            // FeederSound();
 
             target_motor_lap_count[0] = manuel_feeder_portion; // manuel butona basılınca tek porsiyon kadar besleme yapılıyor.
             runing_program = 0;
@@ -419,7 +440,7 @@ void TaskFeederFlowControl(void *pvParameters)
 
         while (control && (millis() - sayac < 30000))
         {
-            // Burada motor çalıştıktan sonra 30 saniye kadar akış olup olmadığını kontrol ediyoruz.
+            // [BUILDING] Burada motor çalıştıktan sonra 30 saniye kadar akış olup olmadığını kontrol ediyoruz.
             // Bu döngü 30 saniye boyunca çalışacak ve vTaskDelay ile belirli aralıklarla gecikme yaparak CPU'yu meşgul etmeyecek.
             vTaskDelay(100 / portTICK_PERIOD_MS); // 10 Hz
         }
@@ -440,6 +461,11 @@ void TaskSoundControl(void *pvParameters)
     {
         if (Speaker_Volume > 0)
         {
+            if (wifi_alarm == false)
+            {
+                // [BUILDING] Buraya uzaktan ses gönderdiğimizde çalması için sunucu bağlantıları yapılacak.
+                audio.connecttohost("http://mp3.ffh.de/radioffh/hqlivestream.mp3"); //  128k mp3
+            }
             audio.loop(); // Ses döngüsü işlemi, eğer ses seviyesi 0'dan büyükse çalıştır
         }
         else
@@ -589,7 +615,7 @@ void TaskButtonControl(void *pvParameters)
             {
                 buttonHeld = true;
                 manuel_water_status = true; // Butona uzun basıldığında manuel_water_status true olacak
-                // Water_Feeder_Sound();
+                // WaterFeederSound();
             }
         }
         else // Buton bırakıldığında
@@ -620,7 +646,7 @@ void TaskButtonControl(void *pvParameters)
 
                 last_manuel_mod_feed_time = Saat;
 
-                // Feeder_Sound();
+                // FeederSound();
 
                 target_motor_lap_count[0] = manuel_feeder_portion; // manuel butona basılınca tek porsiyon kadar besleme yapılıyor.
                 runing_program = 0;
@@ -694,7 +720,7 @@ void TaskWaterFeeder(void *pvParameters)
             Serial.println("[Info]: Su sayacı sıfırandı. Su verilliyor...");
             Serial.println();
 
-            // Water_Feeder_Sound();
+            // WaterFeederSound();
 
             unsigned long manuel_water_time = millis();
 
@@ -715,7 +741,7 @@ void TaskWaterFeeder(void *pvParameters)
         if (manuel_water_status)
         {
             Serial.println("[Info]: Manuel Su veriliyor.");
-            Water_Feeder_Sound();
+            WaterFeederSound();
             unsigned long manuel_water_time = millis();
 
             while (millis() - manuel_water_time < (manuel_water_portion * 1000))
@@ -780,10 +806,11 @@ void TaskFoodLevelControl(void *pvParameters)
 {
     while (true)
     {
-
+        //[BUILDING] = bu kısım için sensor eklenip denencek.
         vTaskDelay(10 / portTICK_PERIOD_MS); // 100 Hz
     }
 }
+
 /*
 void Task(void *pvParameters)
 {

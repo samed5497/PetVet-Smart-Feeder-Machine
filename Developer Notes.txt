@@ -1,0 +1,16 @@
+Bu kısımda geliştiricler için bilgilendirme bölümleri vardır. 
+
+
+#### Parantez Açıklamaları
+
+[BUILDING] = Geliştirilecek görevi temsil eder. 
+
+
+
+#### HATA KODLARI 
+
+- 100 = Wifi bağlantı hatası
+- 110 = Cihaz motoru sıkıştı hatası
+- 120 = Maksimum su seviyesi
+- 125 = Minimum su seviyesi
+- 150 = Yüksek ses (havlama vs.) algılandı. 

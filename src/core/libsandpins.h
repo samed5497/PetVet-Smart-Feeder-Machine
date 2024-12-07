@@ -22,7 +22,7 @@
 // Core Variables *************************
 
 String UYGULAMA = "PetVet ";
-String VERSIYON = "v0.2_beta-by S.KAYA";
+#define CURRENT_VERSION VERSION
 const char *hostname = "PetVet";
 
 // ****************************************

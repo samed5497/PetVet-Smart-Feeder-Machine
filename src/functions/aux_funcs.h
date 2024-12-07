@@ -1,6 +1,7 @@
 #include <core/variables.h>
+/////////////////////   ZAMAN TAKİP FONKSİYONLARI    ////////////////////////////////////////////////////////////////////////////////////////////
 
-void Feed_Time_Tracking_Fonction()
+void FeedTimeTrackingFunction()
 {
     //
     for (int i = 1; i <= PROGRAM_SAYISI; i++)
@@ -23,7 +24,7 @@ void Feed_Time_Tracking_Fonction()
 
 /////////////////////   MOTOR FONKSİYONLARI    ////////////////////////////////////////////////////////////////////////////////////////////
 
-void motoru_baslat(bool ters_yon)
+void StartMotor(bool ters_yon)
 {
     digitalWrite(m1_en_pin, HIGH);
     if (ters_yon)
@@ -38,14 +39,14 @@ void motoru_baslat(bool ters_yon)
     }
 }
 
-void motoru_durdur()
+void StopMotor()
 {
     digitalWrite(m1_en_pin, LOW);
 }
 
 /////////////////////   MOTOR KONTROL FONKSİYONLARI    ////////////////////////////////////////////////////////////////////////////////////////////
 
-void donme_kontrol()
+void TurningControl()
 {
     if (motor_lap_count < -1)
     {
@@ -67,8 +68,8 @@ void donme_kontrol()
     if (millis() - son_tiklama_zamani > 1000) // 1 saniye içinde artış olmazsa motoru ters yönde çalıştır
     {
         Serial.println("[HATA]: Sıkışma Algılandı - 1");
-        motoru_durdur();
-        motoru_baslat(false);
+        StopMotor();
+        StartMotor(false);
 
         if (digitalRead(switch_pin) == LOW)
         {
@@ -87,9 +88,9 @@ void donme_kontrol()
         }
         son_tiklama_zamani = millis();
         motor_lap_count--;
-        motoru_durdur();
+        StopMotor();
 
-        motoru_baslat(true);
+        StartMotor(true);
     }
 
     if (millis() - son_tiklama_zamani > 150 and switch_durum == true and digitalRead(switch_pin) == LOW) // swich tıklandıgında basılı kalmaması için sayaç.
@@ -110,9 +111,9 @@ void colorWipe(uint32_t c, uint8_t wait)
     }
 }
 
-/////////////////////   Feeder Sound FONKSİYONLARI    ////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////   BUZZER FONKSİYONLARI    ////////////////////////////////////////////////////////////////////////////////////////////
 
-void Feeder_Sound()
+void FeederSound()
 {
     tone(buzzer_pin, 500); // 1000 Hz frekansta ses üret
     vTaskDelay(50);        // 250 milisaniye bekle
@@ -127,7 +128,7 @@ void Feeder_Sound()
     noTone(buzzer_pin);    // Sesi kapat
 }
 
-void Water_Feeder_Sound()
+void WaterFeederSound()
 {
     tone(buzzer_pin, 1000); // 1000 Hz frekansta ses üret
     vTaskDelay(100);        // 250 milisaniye bekle
@@ -140,32 +141,68 @@ void Water_Feeder_Sound()
 
 /////////////////////   DAHİLİ EEPROM FONKSİYONLARI    ////////////////////////////////////////////////////////////////////////////////////////////
 
-// EEPROM'a güvenli bir şekilde yazmak için fonksiyon
-void EEPROM_Write(int address, int value)
+void EEPROMWrite(int address, int value) // EEPROM'a güvenli bir şekilde yazmak için fonksiyon
 {
     EEPROM.writeInt(address, value);
     EEPROM.commit();
 }
 
-// EEPROM'dan veri okumak için fonksiyon
-int EEPROM_Read(int address)
+int EEPROMRead(int address) // EEPROM'dan veri okumak için fonksiyon
 {
     return EEPROM.readInt(address);
 }
 
-/////////////////////  RTC EEPROM FONKSİYONLARI    ////////////////////////////////////////////////////////////////////////////////////////////
+void writeTimetoEEPROM() // Zaman değerlerini EEPROM'a yazma işlemi
+{
+    if (currentDayofWeek != EEPROMRead(70))
+    {
+        EEPROMWrite(70, currentDayofWeek);
+        vTaskDelay(5);
+        EEPROMWrite(40, currentDay);
+        vTaskDelay(5);
+        EEPROMWrite(50, currentMonth);
+        vTaskDelay(5);
+        EEPROMWrite(60, currentYear);
+        vTaskDelay(5);
+        Serial.printf("[Info]: Hafızadaki Gün Güncellendi: %d\n", currentDayofWeek);
+    }
+    if (currentHour != EEPROMRead(10))
+    {
+        EEPROMWrite(10, currentHour);
+        vTaskDelay(5);
+        Serial.printf("[Info]: Hafızadaki Saat Güncellendi: %d\n", currentHour);
+        Local_Time_Report = true;
+    }
+    if (currentMinute != EEPROMRead(20))
+    {
+        EEPROMWrite(20, currentMinute);
+        vTaskDelay(5);
+        Serial.printf("[Info]: Hafızadaki Dakika Güncellendi: %d\n", currentMinute);
+        // device_server_report = true;
+    }
+    if (currentSecond != EEPROMRead(30))
+    {
+        EEPROMWrite(30, currentSecond);
+        vTaskDelay(5);
+        Serial.printf("[Info]: Hafızadaki Saniye Güncellendi: %d\n", currentSecond);
+    }
+    Serial.println();
+}
 
-void writeEEPROM(int address, int data)
+/////////////////////  HARİCİ EEPROM FONKSİYONLARI    ////////////////////////////////////////////////////////////////////////////////////////////
+/*
+void writeEEPROM_RTC(int address, int data)
 {
     Wire.beginTransmission(EEPROM_ADDRESS); // 24C32'nin adresi
     Wire.write((byte)(address >> 8));       // Yüksek adres byte
     Wire.write((byte)(address & 0xFF));     // Düşük adres byte
     Wire.write((byte)data);                 // Veri
     Wire.endTransmission();
+    Serial.println("[Info]: Harici Eeproma Yazıldı.");
 }
 
 // EEPROM'dan veri okuma fonksiyonu
-int readEEPROM(int address)
+int readEEPROM_RTC(int address)
 {
     int data = 0;                           // Okunan veri
     Wire.beginTransmission(EEPROM_ADDRESS); // 24C32'nin adresi
@@ -178,6 +215,8 @@ int readEEPROM(int address)
     {
         data = Wire.read(); // Okunan veriyi al
     }
+    Serial.println("[Info]: Harici Eepromdan Okundu.");
+
     return data;
 }
 
@@ -186,81 +225,147 @@ void Epprom_Update_From_PC()
     Serial.println("[Info]: CİHAZIN İLK SAAT KURUKUMU YAPILDI.");
 
     // Yıl, ay ve günü EEPROM'a yazma
-    writeEEPROM(60, 24); // Yılı iki haneli olarak kaydet (örneğin 2024 -> 24)
+    writeEEPROM_RTC(60, 24); // Yılı iki haneli olarak kaydet (örneğin 2024 -> 24)
     vTaskDelay(5);
-    writeEEPROM(50, 8); // Ayı kaydet
+    writeEEPROM_RTC(50, 8); // Ayı kaydet
     vTaskDelay(5);
-    writeEEPROM(40, 17); // Günü kaydet
+    writeEEPROM_RTC(40, 17); // Günü kaydet
     vTaskDelay(5);
-    writeEEPROM(70, 6);
+    writeEEPROM_RTC(70, 6);
     vTaskDelay(5);
 
     // Saat, dakika ve saniyeyi EEPROM'a yazma
-    writeEEPROM(10, 0); // Saati kaydet
+    writeEEPROM_RTC(10, 0); // Saati kaydet
     vTaskDelay(5);
-    writeEEPROM(20, 0); // Dakikayı kaydet
+    writeEEPROM_RTC(20, 0); // Dakikayı kaydet
     vTaskDelay(5);
-    writeEEPROM(30, 15); // Saniyeyi kaydet
+    writeEEPROM_RTC(30, 15); // Saniyeyi kaydet
     vTaskDelay(5);
 }
-
-// RTC değerlerini EEPROM'a yazma işlemi
-void writeRTCtoEEPROM()
-{
-    if (currentDayofWeek != readEEPROM(70))
-    {
-        writeEEPROM(70, rtc.dayOfWeek());
-        vTaskDelay(5);
-        writeEEPROM(40, rtc.day());
-        vTaskDelay(5);
-        writeEEPROM(50, rtc.month());
-        vTaskDelay(5);
-        writeEEPROM(60, rtc.year());
-        vTaskDelay(5);
-        Serial.printf("[Info]: Hafızadaki Gün Güncellendi: %d\n", currentDayofWeek);
-    }
-    if (currentHour != readEEPROM(10))
-    {
-        writeEEPROM(10, rtc.hour());
-        vTaskDelay(5);
-        Serial.printf("[Info]: Hafızadaki Saat Güncellendi: %d\n", currentHour);
-        Local_Time_Report = true;
-    }
-    if (currentMinute != readEEPROM(20))
-    {
-        writeEEPROM(20, rtc.minute());
-        vTaskDelay(5);
-        Serial.printf("[Info]: Hafızadaki Dakika Güncellendi: %d\n", currentMinute);
-        // device_server_report = true;
-    }
-    if (currentSecond != readEEPROM(30))
-    {
-        writeEEPROM(30, rtc.second());
-        vTaskDelay(5);
-        Serial.printf("[Info]: Hafızadaki Saniye Güncellendi: %d\n", currentSecond);
-    }
-    Serial.println();
-    /*
-    writeEEPROM(10, currentHour);
-    vTaskDelay (5); // Yazma işlemi için biraz daha uzun bir gecikme ekleyin
-    writeEEPROM(20, currentMinute);
-    vTaskDelay (5);
-    writeEEPROM(30, currentSecond);
-    vTaskDelay (5);
-    writeEEPROM(40, currentDay);
-    vTaskDelay (5);
-    writeEEPROM(50, currentMonth);
-    vTaskDelay (5);
-    writeEEPROM(60, currentYear);
-    vTaskDelay (5);
-    writeEEPROM(70, currentDayofWeek);
-    vTaskDelay (5);
 */
+
+/////////////////////   ZAMAN YÖNETİM FONKSİYONLARI    ////////////////////////////////////////////////////////////////////////////////////////////
+void NTPTimeUpdateOffline()
+{
+    timeClient.update();
+
+    currentDayofWeek = timeClient.getDay();
+    currentYear = EEPROMRead(60);
+    currentMonth = EEPROMRead(50);
+    currentDay = EEPROMRead(40);
+    currentSecond = timeClient.getSeconds();
+    currentMinute = timeClient.getMinutes();
+    currentHour = timeClient.getHours();
+
+    Serial.println("[INFO]: ÖNCESİ:");
+    Serial.print("currentHour: ");
+    Serial.println(currentHour);
+    Serial.print("currentMinute: ");
+    Serial.println(currentMinute);
+    Serial.print("currentSecond: ");
+    Serial.println(currentSecond);
+
+    int seconddiffent, minutediffent, hourdiffent;
+
+    if (!LocalClockControl)
+    {
+        int currentDayofWeekEEPROM = EEPROMRead(DAY_OF_WEEK_ADDRESS);
+        int currentYearEEPROM = EEPROMRead(YEAR_ADDRESS);
+        int currentMonthEEPROM = EEPROMRead(MONTH_ADDRESS);
+        int currentDayEEPROM = EEPROMRead(DAY_ADDRESS);
+        int currentSecondEEPROM = EEPROMRead(SECOND_ADDRESS);
+        int currentMinuteEEPROM = EEPROMRead(MINUTE_ADDRESS);
+        int currentHourEEPROM = EEPROMRead(HOUR_ADDRESS);
+        LocalClockControl = true;
+    }
+    else
+    {
+        int currentDayofWeekEEPROM = currentDayofWeek;
+        int currentYearEEPROM = currentYear;
+        int currentMonthEEPROM = currentMonth;
+        int currentDayEEPROM = currentDay;
+        int currentSecondEEPROM = currentSecond;
+        int currentMinuteEEPROM = currentMinute;
+        int currentHourEEPROM = currentHour;
+    }
+
+    ////////////////////////////////////////////////////// SECOND
+
+    if (currentSecond < currentSecondEEPROM)
+    {
+        seconddiffent = currentSecondEEPROM - currentSecond;
+        currentSecond = currentSecond + seconddiffent;
+    }
+    else
+    {
+        seconddiffent = currentSecond - currentHourEEPROM;
+        currentSecond = currentSecond + seconddiffent;
+    }
+    if (currentSecond > 59)
+    {
+        currentSecond = currentSecond - 59;
+        currentMinute = currentMinute + 1;
+    }
+
+    ////////////////////////////////////////////////////// MINUTE
+
+    if (currentMinute < currentMinuteEEPROM)
+    {
+        seconddiffent = currentMinuteEEPROM - currentMinute;
+        currentMinute = currentMinute + seconddiffent;
+    }
+    else
+    {
+        seconddiffent = currentMinute - currentHourEEPROM;
+        currentMinute = currentMinute + seconddiffent;
+    }
+    if (currentMinute > 59)
+    {
+        currentMinute = currentMinute - 59;
+        currentHour = currentHour + 1;
+    }
+
+    ////////////////////////////////////////////////////// HOUR
+
+    if (currentHour < currentHourEEPROM)
+    {
+        hourdiffent = currentHourEEPROM - currentHour;
+        currentHour = currentHour + hourdiffent;
+    }
+    else
+    {
+        hourdiffent = currentHour - currentHourEEPROM;
+        currentHour = currentHour + hourdiffent;
+    }
+    if (currentHour > 23)
+    {
+        currentHour = currentHour - 23;
+        currentDayofWeek = currentDayofWeek + 1;
+    }
+
+    Serial.println("[INFO]: Sonrası:");
+    Serial.print("currentHour: ");
+    Serial.println(currentHour);
+    Serial.print("currentMinute: ");
+    Serial.println(currentMinute);
+    Serial.print("currentSecond: ");
+    Serial.println(currentSecond);
 }
 
-/////////////////////   RTC BASLATMA FONKSİYONLARI    ////////////////////////////////////////////////////////////////////////////////////////////
+void NTPTimeUpdate()
+{
+    timeClient.update();
 
-void ZamanGuncelleYazdir()
+    currentDayofWeek = timeClient.getDay();
+    currentYear = EEPROMRead(60);
+    currentMonth = EEPROMRead(50);
+    currentDay = EEPROMRead(40);
+    currentSecond = timeClient.getSeconds();
+    currentMinute = timeClient.getMinutes();
+    currentHour = timeClient.getHours();
+}
+
+void RTCTimeUpdate()
 {
     rtc.refresh();
 
@@ -272,31 +377,8 @@ void ZamanGuncelleYazdir()
     currentMinute = rtc.minute();
     currentHour = rtc.hour();
 
-    /*
-        Serial.print("Saat: ");
-        Serial.print(rtc.hour());
-        Serial.print(":");
-        Serial.print(rtc.minute());
-        Serial.print(":");
-        Serial.print(rtc.second());
-
-        Serial.print(" *** Tarih: ");
-        Serial.print(rtc.day());
-        Serial.print("/");
-        Serial.print(rtc.month());
-        Serial.print("/");
-        Serial.print(rtc.year());
-        Serial.print(" *** ");
-        Serial.print(rtc.dayOfWeek());
-        Serial.println(".gün");
-    */
-
     if (rtcModel == URTCLIB_MODEL_DS1307 || rtcModel == URTCLIB_MODEL_DS3232)
     {
-        // Serial.print("~ SRAM position   : ");
-        // Serial.print(position);
-        // Serial.print(" / value: ");
-        // Serial.println(rtc.ramRead(position), HEX);
         position++;
     }
     Serial.flush();
@@ -304,7 +386,6 @@ void ZamanGuncelleYazdir()
 
 /////////////////////   removeErrorCode FONKSİYONLARI    ////////////////////////////////////////////////////////////////////////////////////////////
 
-// Belirli bir hata kodunu silen fonksiyon
 void removeErrorCode(String errorCode)
 {
     int index = hata_kodu.indexOf(errorCode);
@@ -332,9 +413,9 @@ void removeErrorCode(String errorCode)
     }
 }
 
-/////////////////////   SeriPortGelenKontrol FONKSİYONLARI    ////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////   SerialPortIncomingControl FONKSİYONLARI    ////////////////////////////////////////////////////////////////////////////////////////////
 
-void SeriPortGelenKontrol()
+void SerialPortIncomingControl()
 {
     if (Serial.available() > 0)
     {                                                          // Seri portta veri varsa
@@ -356,13 +437,13 @@ void SeriPortGelenKontrol()
     }
 }
 
-void Ready_to_Send_Datas_1()
+/////////////////////   DATABASE'E GÖNDERİLEN FONKSİYONLARI    ////////////////////////////////////////////////////////////////////////////////////////////
+
+void ReadyToSendDatas1()
 {
     if (manuel_water_status_report) // manuel su alma komutunu aldıktan sonra geri bildirim olarak komutu tekrar false yapıyor.
     {
-        VeriYolu.clear();
-        VeriYolu.concat(uid);
-        VeriYolu.concat("/programs/manuel/manuelwater");
+        VeriYolu = uid + "/PetVet/DEVICE" + String(DEVICE_ID) + "/programs/manuel/manuelwater";
         if (Firebase.RTDB.setBool(&fbdo, VeriYolu, false))
         {
             manuel_water_status_report = false;
@@ -379,9 +460,7 @@ void Ready_to_Send_Datas_1()
 
     if (manuel_feeder_status_report) // manuel su alma komutunu aldıktan sonra geri bildirim olarak komutu tekrar false yapıyor.
     {
-        VeriYolu.clear();
-        VeriYolu.concat(uid);
-        VeriYolu.concat("/programs/manuel/manuelfeed");
+        VeriYolu = uid + "/PetVet/DEVICE" + String(DEVICE_ID) + "/programs/manuel/manuelfeed";
         if (Firebase.RTDB.setBool(&fbdo, VeriYolu, false))
         {
             manuel_feeder_status_report = false;
@@ -395,45 +474,37 @@ void Ready_to_Send_Datas_1()
     }
 }
 
-void Ready_to_Send_Datas_2()
+void ReadyToSendDatas2()
 {
     if (Local_Time_Report)
     {
-        VeriYolu.clear();
-        VeriYolu.concat(uid);
-        VeriYolu.concat("/device/lastreport");
-
-        // Değişkenleri String'e dönüştür
-        String yearStr = String(currentYear);
-        String monthStr = String(currentMonth); // 'currentMonth' yerine 'currentMonth' kullanıldı.
-        String dayStr = String(currentDay);     // 'currentDay' değil 'currentDay' olarak düzenlendi.
-        String hourStr = String(currentHour);
-        String minuteStr = String(currentMinute);
-        String secondStr = String(currentSecond);
+        // Veri yolu oluştur
+        VeriYolu = uid + "/PetVet/DEVICE" + String(DEVICE_ID) + "/device/lastreport";
 
         // Tarih ve saati uygun formatta birleştir
-        String Saat = dayStr + "/" + monthStr + "/" + yearStr + " " +
-                      hourStr + ":" + minuteStr + ":" + secondStr;
+        String TarihSaat = String(currentDay) + "/" + String(currentMonth) + "/" + String(currentYear) + " " +
+                           String(currentHour) + ":" + String(currentMinute) + ":" + String(currentSecond);
 
-        if (Firebase.RTDB.setString(&fbdo, VeriYolu, Saat))
+        // Firebase'e gönder ve sonucunu kontrol et
+        if (Firebase.RTDB.setString(&fbdo, VeriYolu, TarihSaat))
         {
-            Local_Time_Report = false;
+            Local_Time_Report = false; // Gönderim başarılı ise raporlama bayrağını sıfırla
         }
         else
         {
-            Serial.print("[ERROR]: Connection FAILED. ");
+            // Hata durumunda mesaj yazdır
+            Serial.println("[ERROR]: Connection FAILED.");
             Serial.println("REASON: " + fbdo.errorReason());
         }
-        vTaskDelay(1); // Boşluk kaldırıldı
+
+        vTaskDelay(1); // Sistem dengesini korumak için kısa bir gecikme
     }
 
     ///////////////////////////////////////////////////////////////////////
 
     if (alarm_status)
     {
-        VeriYolu.clear();
-        VeriYolu.concat(uid);
-        VeriYolu.concat("/device/alarmcode");
+        VeriYolu = uid + "/PetVet/DEVICE" + String(DEVICE_ID) + "/device/alarmcode";
         if (Firebase.RTDB.setString(&fbdo, VeriYolu, hata_kodu))
         {
         }
@@ -449,9 +520,7 @@ void Ready_to_Send_Datas_2()
     /*
        if (last_manuel_mod_feed_time != SERVER_last_manuel_mod_feed_time)
        {
-           VeriYolu.clear();
-           VeriYolu.concat(uid);
-           VeriYolu.concat("/device/lastmanuelfeedtime");
+        VeriYolu = uid + "/PetVet/DEVICE" + String(DEVICE_ID) + "/device/lastmanuelfeedtime";
 
            if (Firebase.RTDB.setString(&fbdo, VeriYolu, last_manuel_mod_feed_time))
            {
@@ -467,9 +536,7 @@ void Ready_to_Send_Datas_2()
 
     if (Food_Level != SERVER_Food_Level)
     {
-        VeriYolu.clear();
-        VeriYolu.concat(uid);
-        VeriYolu.concat("/device/foodlevel");
+        VeriYolu = uid + "/PetVet/DEVICE" + String(DEVICE_ID) + "/device/foodlevel";
         if (Firebase.RTDB.setInt(&fbdo, VeriYolu, Food_Level))
         {
         }
@@ -485,9 +552,7 @@ void Ready_to_Send_Datas_2()
 
     if (Water_Level != SERVER_Water_Level)
     {
-        VeriYolu.clear();
-        VeriYolu.concat(uid);
-        VeriYolu.concat("/device/waterlevel");
+        VeriYolu = uid + "/PetVet/DEVICE" + String(DEVICE_ID) + "/device/waterlevel";
         if (Firebase.RTDB.setInt(&fbdo, VeriYolu, Water_Level))
         {
         }
@@ -503,9 +568,7 @@ void Ready_to_Send_Datas_2()
 
     if (batterylevel != SERVER_batterylevel)
     {
-        VeriYolu.clear();
-        VeriYolu.concat(uid);
-        VeriYolu.concat("/device/batterylevel");
+        VeriYolu = uid + "/PetVet/DEVICE" + String(DEVICE_ID) + "/device/batterylevel";
         if (Firebase.RTDB.setInt(&fbdo, VeriYolu, batterylevel))
         {
         }

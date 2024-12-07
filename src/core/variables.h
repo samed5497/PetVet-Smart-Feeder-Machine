@@ -8,6 +8,7 @@ Audio audio;
 
 #define WIFI_SSID ssid
 #define WIFI_PASSWORD pass
+
 /////////////////////////////////////////////// NTP Sunucu ayarları
 
 const long utcOffsetInSeconds = 10800; // Türkiye için UTC+3
@@ -15,16 +16,22 @@ const char *ntpServer = "pool.ntp.org";
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, ntpServer, utcOffsetInSeconds);
 
-unsigned long previousDayMillis, previousHourMillis, previousMinuteMillis, previousMillis, currentMillis = 0;
+unsigned long currentMillis, previousDayMillis, previousHourMillis, previousMinuteMillis, previousMillis = 0;
 
-const int EEPROM_SIZE = 64;
+bool LocalClockControl = false;
+/////////////////////////////////////////////// EEPROM Değişkenleri
 
-const int DAY_ADDRESS = 0;
-const int HOUR_ADDRESS = 4;
-const int MINUTE_ADDRESS = 8;
-const int SECOND_ADDRESS = 12;
+const int EEPROM_SIZE = 4096;
 
-int currentDayofWeek, currentYear, currentMonth, currentDay, currentHour, currentMinute, currentSecond;
+const int HOUR_ADDRESS = 10;
+const int MINUTE_ADDRESS = 20;
+const int SECOND_ADDRESS = 30;
+const int DAY_ADDRESS = 40;
+const int MONTH_ADDRESS = 50;
+const int YEAR_ADDRESS = 60;
+const int DAY_OF_WEEK_ADDRESS = 70;
+
+int currentYear, currentMonth, currentDay, currentDayofWeek, currentHour, currentMinute, currentSecond;
 
 /////////////////////////////////////////////// Sunucu Değişkenleri
 
@@ -34,6 +41,7 @@ int currentDayofWeek, currentYear, currentMonth, currentDay, currentHour, curren
 String uid, VeriYolu;
 int id_count = 0;
 bool signupOK = false;
+int DEVICE_ID = 1;
 
 FirebaseData fbdo;
 FirebaseAuth auth;
@@ -41,9 +49,8 @@ FirebaseConfig config;
 
 /////////////////////////////////////////////// Genel değişkenler
 
-int motor_lap_count,
-    wtr_lvl, noisy = 0;
-bool switch_durum, feed_mode, Time_Update, first_time_update = false;
+int motor_lap_count, wtr_lvl, noisy = 0;
+bool switch_durum, feed_mode, EEPROM_Time_Update, first_time_update = false;
 bool alarm_status, sikisma_alarm, noisy_alarm, max_water_alarm, min_water_alarm, wifi_alarm = false;
 String hata_kodu = "";
 
@@ -71,6 +78,8 @@ uint8_t position;
 /////////////////////////////////////////////// Program değişkenleri
 
 #define PROGRAM_SAYISI 10
+String veriAlanlari[] = {"number", "hour", "minute", "portion", "status"};
+
 int feed_program[PROGRAM_SAYISI];
 int target_motor_lap_count[PROGRAM_SAYISI];
 int feed_time_hour[PROGRAM_SAYISI];
@@ -84,7 +93,7 @@ bool device_server_report, manuel_feeder_status, manuel_water_status, Local_Time
 bool manuel_feeder_status_report, manuel_water_status_report = true;
 
 int manuel_water_portion = 10; // second
-int water_work_time = 1;       // Minute
+int water_work_time = 10;      // Minute waterrefleshtime
 unsigned long last_water_time = 0;
 
 unsigned long ilk_temas, son_temas, son_tiklama_zamani = 0;

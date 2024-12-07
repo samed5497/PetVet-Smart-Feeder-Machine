@@ -1,6 +1,6 @@
 #include <functions/aux_funcs.h>
 
-void Wifi_Starting()
+void WifiStarting()
 {
     Serial.printf("\r\n[Wifi]: Bağlantı için bekleniyor..");
 
@@ -8,7 +8,9 @@ void Wifi_Starting()
     WiFi.disconnect();
     WiFi.setSleep(false);
     WiFi.setAutoReconnect(true);
-    WiFi.setHostname(hostname);
+    WiFi.hostname(hostname);
+    WiFi.setHostname(hostname); // ESP32 için hostname ayarı
+
     WiFi.begin(ssid, pass);
     int count = 0;
     while (count < 30)
@@ -23,17 +25,207 @@ void Wifi_Starting()
         }
 
         Serial.print(".");
-        vTaskDelay(250);
+        delay(250);
         colorWipe(strip.Color(255, 255, 255), 0);
         Serial.print(".");
-        vTaskDelay(250);
+        delay(250);
         colorWipe(strip.Color(0, 0, 0), 0);
         count++;
     }
     Serial.println();
 }
 
-void Firebase_Server_Starting()
+void FirebaseDeviceIDAssignment()
+{
+    // Başlangıç değişkenleri
+    String currentMAC = WiFi.macAddress(); // Mevcut cihazın MAC adresi
+    bool isMatched = false;                // MAC adresi eşleşme durumu
+
+    // Firebase hazır ve kimlik doğrulama tamamlandıysa
+    if (Firebase.ready() && signupOK)
+    {
+        // Mevcut cihazları kontrol etmek için döngü
+        while (true)
+        {
+            String devicePath = uid + "/PetVet/DEVICE" + String(DEVICE_ID) + "/device/macadress";
+            // Firebase'den cihazın MAC adresini al
+            if (Firebase.RTDB.getString(&fbdo, devicePath))
+            {
+                // MAC adresi eşleşiyor mu?
+                if (fbdo.stringData() == currentMAC)
+                {
+                    Serial.println("[Info]: Mevcut cihaz bulundu.");
+                    isMatched = true;
+                    break; // Döngüden çık
+                }
+            }
+            else if (fbdo.httpCode() == -103)
+            {
+                // Yeni cihaz için bir yol bulunamadıysa, yeni cihaz ataması yapılır
+                Serial.println("[Info]: Yeni cihaz oluşturuluyor.");
+                break; // Döngüden çık
+            }
+            else
+            {
+                // Diğer hata durumları
+                Serial.print("[ERROR]: Firebase bağlantı hatası. ");
+                Serial.println("HTTP Kod: " + String(fbdo.httpCode()));
+                Serial.println("Hata Sebebi: " + fbdo.errorReason());
+
+                return;
+            }
+
+            DEVICE_ID++; // Sonraki cihaz numarasına geç
+        }
+
+        // Eğer eşleşme yoksa yeni cihaz kaydı oluştur
+        if (!isMatched)
+        {
+            FirebaseJson json;
+
+            // Device bilgilerini ekle
+            json.set("/device/macadress", currentMAC);
+            json.set("/device/lastmanuelfeedtime", last_manuel_mod_feed_time);
+            json.set("/device/foodlevel", Food_Level);
+            json.set("/device/waterlevel", Water_Level);
+            json.set("/device/batterylevel", batterylevel);
+            json.set("/device/alarmcode", "-");
+            json.set("/device/lastmanuelfeedtime", "-");
+            json.set("/device/ipadress", WiFi.localIP().toString().c_str());
+
+            // Settings bilgilerini ekle
+            json.set("/settings/serialport", report_mode);
+            json.set("/settings/soundvolume", Speaker_Volume);
+
+            // Manuel ayarlarını ekle
+            json.set("/programs/manuel/feederportion", manuel_feeder_portion);
+            json.set("/programs/manuel/waterportion", manuel_water_portion);
+            json.set("/programs/manuel/manuelfeed", manuel_feeder_status);
+            json.set("/programs/manuel/manuelwater", manuel_water_status);
+            json.set("/programs/oto/waterrefleshtime", water_work_time);
+
+            // Program ayarlarını ekle
+            for (int i = 1; i <= PROGRAM_SAYISI; i++)
+            {
+                String programPath = "programs/oto/program" + String(i);
+                json.set(programPath + "/number", i);
+                json.set(programPath + "/hour", 0);
+                json.set(programPath + "/minute", 0);
+                json.set(programPath + "/portion", 0);
+                json.set(programPath + "/status", 0);
+            }
+
+            // Firebase'e gönder
+            String devicePath = uid + "/PetVet/DEVICE" + String(DEVICE_ID);
+            if (Firebase.RTDB.setJSON(&fbdo, devicePath, &json))
+            {
+                Serial.println("[Info]: Yeni cihaz kaydı başarıyla oluşturuldu.");
+            }
+            else
+            {
+                Serial.print("[ERROR]: Firebase JSON gönderimi başarısız. ");
+                Serial.println(fbdo.errorReason());
+                return;
+            }
+        }
+
+        // Cihaz ID'sini belirle
+        DEVICE_ID = DEVICE_ID;
+        Serial.printf("[Info]: Cihaz ID: DEVICE%d olarak ayarlandı.\n", DEVICE_ID);
+    }
+    else
+    {
+        Serial.println("[ERROR]: Firebase bağlantısı hazır değil.");
+    }
+
+    //////////// Kullanıcı Mail kontrolü ve yazma ////////////
+    VeriYolu = uid + "/zzz_mail";
+    if (Firebase.RTDB.getString(&fbdo, VeriYolu))
+    {
+        String mevcutDeger = fbdo.stringData();
+        if (mevcutDeger == email)
+        {
+            // Serial.println("[Info]: Mail zaten aynı, değişiklik yapılmadı.");
+        }
+        else
+        {
+            if (Firebase.RTDB.setString(&fbdo, VeriYolu, email))
+            {
+                Serial.println("[Info]: Mail güncellendi.");
+            }
+            else
+            {
+                Serial.print("[ERROR]: Mail güncellenemedi. Nedeni: ");
+                Serial.println(fbdo.errorReason());
+            }
+        }
+    }
+    else
+    {
+        if (fbdo.httpCode() == -103)
+        {
+            if (Firebase.RTDB.setString(&fbdo, VeriYolu, email))
+            {
+                Serial.println("[Info]: Mail oluşturuldu.");
+            }
+            else
+            {
+                Serial.print("[ERROR]: Mail oluşturulamadı. Nedeni: ");
+                Serial.println(fbdo.errorReason());
+            }
+        }
+        else
+        {
+            Serial.print("[ERROR]: Mail kontrolü başarısız. Nedeni: ");
+            Serial.println(fbdo.errorReason());
+        }
+    }
+
+    //////////// Kullanıcı Şifre kontrolü ve yazma ////////////
+    VeriYolu = uid + "/zzz_mpass";
+    if (Firebase.RTDB.getString(&fbdo, VeriYolu))
+    {
+        String mevcutDeger = fbdo.stringData();
+        if (mevcutDeger == email_pass)
+        {
+            // Serial.println("[Info]: Mail şifresi zaten aynı, değişiklik yapılmadı.");
+        }
+        else
+        {
+            if (Firebase.RTDB.setString(&fbdo, VeriYolu, email_pass))
+            {
+                Serial.println("[Info]: Mail şifresi güncellendi.");
+            }
+            else
+            {
+                Serial.print("[ERROR]: Mail şifresi güncellenemedi. Nedeni: ");
+                Serial.println(fbdo.errorReason());
+            }
+        }
+    }
+    else
+    {
+        if (fbdo.httpCode() == -103)
+        {
+            if (Firebase.RTDB.setString(&fbdo, VeriYolu, email_pass))
+            {
+                Serial.println("[Info]: Mail şifresi oluşturuldu.");
+            }
+            else
+            {
+                Serial.print("[ERROR]: Mail şifresi oluşturulamadı. Nedeni: ");
+                Serial.println(fbdo.errorReason());
+            }
+        }
+        else
+        {
+            Serial.print("[ERROR]: Mail şifre kontrolü başarısız. Nedeni: ");
+            Serial.println(fbdo.errorReason());
+        }
+    }
+}
+
+void FirebaseServerStarting()
 {
     config.api_key = API_KEY;
     config.database_url = DATABASE_URL;
@@ -46,7 +238,7 @@ void Firebase_Server_Starting()
     Firebase.begin(&config, &auth);
 
     Serial.println("");
-    Serial.println("Bilgi- Kullanıcı bilgileri doğrulanıyor..");
+    Serial.println("[Info]: Kullanıcı bilgileri doğrulanıyor..");
 
     while ((auth.token.uid) == "" && id_count < 75)
     {
@@ -56,7 +248,7 @@ void Firebase_Server_Starting()
     }
     if ((auth.token.uid) == "")
     {
-        Serial.println("***HATA! - Zaman aşımına uğrandı.");
+        Serial.println("[***ERROR!] - Zaman aşımına uğrandı.");
         Serial.println();
         vTaskDelay(500);
     }
@@ -69,188 +261,206 @@ void Firebase_Server_Starting()
 
         if (Firebase.ready() && signupOK)
         {
-            VeriYolu.clear();
-            VeriYolu.concat(uid);
-            VeriYolu.concat("/device/mail");
-            if (Firebase.RTDB.setString(&fbdo, VeriYolu, USER_EMAIL))
-            {
-                Serial.println("[Info]: Mail sended.");
-            }
-            else
-            {
-                Serial.print("[ERROR]: Connection FAILED. ");
-                Serial.println("REASON: " + fbdo.errorReason());
-            }
-            VeriYolu.clear();
-            VeriYolu.concat(uid);
-            VeriYolu.concat("/device/macadress");
-            if (Firebase.RTDB.setString(&fbdo, VeriYolu, WiFi.macAddress()))
-            {
-                Serial.println("[Info]: MAC Adress sended.");
-            }
-            else
-            {
-                Serial.print("[ERROR]: Connection FAILED. ");
-                Serial.println("REASON: " + fbdo.errorReason());
-            }
-            VeriYolu.clear();
-            VeriYolu.concat(uid);
-            VeriYolu.concat("/device/ipadress");
-            if (Firebase.RTDB.setString(&fbdo, VeriYolu, WiFi.localIP().toString().c_str()))
-            {
-                Serial.println("[Info]: IP Adress sended.");
-            }
-            else
-            {
-                Serial.print("[ERROR]: Connection FAILED. ");
-                Serial.println("REASON: " + fbdo.errorReason());
-            }
+            FirebaseDeviceIDAssignment();
         }
     }
 }
 
-void Amplificator_Starting()
+void AmplificatorStarting()
 {
     audio.setPinout(I2S_BCLK_pin, I2S_LRCLK_pin, I2S_DIN_pin);
     audio.setVolume(map(Speaker_Volume, 0, 100, 0, 21)); // 0...21
     // audio.connecttohost("http://mp3.ffh.de/radioffh/hqlivestream.mp3"); //  128k mp3
 }
 
-void RTC_Starting_Offline()
+void TimeStartingOffline()
 {
     wifi_alarm = true;
+#if defined(WiFi_and_RTC_clock)
+
     Wire.begin();
-    URTCLIB_WIRE.begin();
-    rtc.set_rtc_address(RTC_ADDRESS);
-    rtc.set_model(rtcModel);
-    rtc.refresh();
+    // Cihazın bağlı olup olmadığını kontrol et
+    Wire.beginTransmission(RTC_ADDRESS);
 
-    // Epprom_Update_From_PC(); // İlk yuklemelerde çalıştırılacak.
+    if (Wire.endTransmission() == 0)
+    { // 0: Cihaz bağlı
+        Serial.println("RTC cihazı algılandı.");
 
-    currentDayofWeek = readEEPROM(70);
-    currentYear = readEEPROM(60);
-    currentMonth = readEEPROM(50);
-    currentDay = readEEPROM(40);
-    currentSecond = readEEPROM(30);
-    currentMinute = readEEPROM(20);
-    currentHour = readEEPROM(10);
-    Serial.println("[Info]: Cihaz saati Offline olarak ayarlandı.");
+        // RTC başlatma işlemleri
+        URTCLIB_WIRE.begin();
+        rtc.set_rtc_address(RTC_ADDRESS);
+        rtc.set_model(rtcModel);
+        rtc.refresh();
 
-    //
-    //
-    // Yalnızca bir kez kullanın, ardından devre dışı bırakın
-    rtc.set(currentSecond, currentMinute, currentHour, currentDayofWeek, currentDay, currentMonth, currentYear);
-    // rtc.set(second, minute, hour, dayOfWeek, dayOfMonth, month, year)
-    //
-    //
+        Serial.println("RTC başlatıldı.");
 
-    rtc.set_12hour_mode(false);
+        currentDayofWeek = EEPROMRead(DAY_OF_WEEK_ADDRESS);
+        currentYear = EEPROMRead(YEAR_ADDRESS);
+        currentMonth = EEPROMRead(MONTH_ADDRESS);
+        currentDay = EEPROMRead(DAY_ADDRESS);
+        currentSecond = EEPROMRead(SECOND_ADDRESS);
+        currentMinute = EEPROMRead(MINUTE_ADDRESS);
+        currentHour = EEPROMRead(HOUR_ADDRESS);
 
-    if (rtc.enableBattery())
-    {
-        Serial.println("[Info]: RTC Pil doğru şekilde etkinleştirildi.");
+        Serial.println("[Info]: Cihaz saati Offline olarak ayarlandı.");
+
+        //
+        //
+        // Yalnızca bir kez kullanın, ardından devre dışı bırakın
+        rtc.set(currentSecond, currentMinute, currentHour, currentDayofWeek, currentDay, currentMonth, currentYear);
+        // rtc.set(second, minute, hour, dayOfWeek, dayOfMonth, month, year)
+        //
+        //
+
+        rtc.set_12hour_mode(false);
+
+        if (rtc.enableBattery())
+        {
+            Serial.println("[Info]: RTC Pil doğru şekilde etkinleştirildi.");
+        }
+        else
+        {
+            Serial.println("[Info]: RTC Pil etkinleştirilirken HATA.");
+        }
+
+        // OSC'nin VBAT kullanacak şekilde ayarlanıp ayarlanmadığını kontrol edin
+        if (rtc.getEOSCFlag())
+            Serial.println(F("[Info]: Osilatör, VCC kesildiğinde VBAT'ı kullanmayacaktır. VCC olmadan zaman artmaz!"));
+        else
+            Serial.println(F("[Info]: Osilatör, VCC kesildiğinde VBAT'ı kullanacaktır."));
+
+        Serial.print("[Info]: Kayıp güç durumu:");
+
+        if (rtc.lostPower())
+        {
+            Serial.print("GÜÇ KESİLDİ. Bayrak temizleniyor...");
+            rtc.lostPowerClear();
+            Serial.println(" Tamamlandı.");
+        }
+        else
+        {
+            Serial.println(" GÜÇ TAMAM");
+        }
+
+        Serial.println();
+
+        // SRAM'ı ayarlayın (DS3231'de SRAM yoktur, dolayısıyla hiçbir şey saklamaz ve her zaman 0xff değerini döndürür)
+        for (position = 0; position < 255; position++)
+        {
+            rtc.ramWrite(position, position);
+        }
+        position = 0;
     }
     else
     {
-        Serial.println("[Info]: RTC Pil etkinleştirilirken HATA.");
+        Serial.println("RTC cihazı algılanamadı!");
+#define WiFi_clock
+#undef WiFi_and_RTC_clock
     }
-
-    // OSC'nin VBAT kullanacak şekilde ayarlanıp ayarlanmadığını kontrol edin
-    if (rtc.getEOSCFlag())
-        Serial.println(F("[Info]: Osilatör, VCC kesildiğinde VBAT'ı kullanmayacaktır. VCC olmadan zaman artmaz!"));
-    else
-        Serial.println(F("[Info]: Osilatör, VCC kesildiğinde VBAT'ı kullanacaktır."));
-
-    Serial.print("[Info]: Kayıp güç durumu:");
-
-    if (rtc.lostPower())
-    {
-        Serial.print("GÜÇ KESİLDİ. Bayrak temizleniyor...");
-        rtc.lostPowerClear();
-        Serial.println(" Tamamlandı.");
-    }
-    else
-    {
-        Serial.println(" GÜÇ TAMAM");
-    }
-
-    Serial.println();
-
-    // SRAM'ı ayarlayın (DS3231'de SRAM yoktur, dolayısıyla hiçbir şey saklamaz ve her zaman 0xff değerini döndürür)
-    for (position = 0; position < 255; position++)
-    {
-        rtc.ramWrite(position, position);
-    }
-    position = 0;
+#elif defined(WiFi_clock)
+    // [BUILDING] = Buraya eepromdan okudugu degeri timeclient sunucusunun varsayılan başlatma ayarı olarak ata.
+    // timeClient.update();
+    currentDayofWeek = EEPROMRead(DAY_OF_WEEK_ADDRESS);
+    currentYear = EEPROMRead(YEAR_ADDRESS);
+    currentMonth = EEPROMRead(MONTH_ADDRESS);
+    currentDay = EEPROMRead(DAY_ADDRESS);
+    currentSecond = EEPROMRead(SECOND_ADDRESS);
+    currentMinute = EEPROMRead(MINUTE_ADDRESS);
+    currentHour = EEPROMRead(HOUR_ADDRESS);
+#endif
 }
 
-void RTC_Starting_Online()
+void TimeStartingOnline()
 {
+#if defined(WiFi_and_RTC_clock)
     Wire.begin();
-    URTCLIB_WIRE.begin();
-    rtc.set_rtc_address(RTC_ADDRESS);
-    rtc.set_model(rtcModel);
-    rtc.refresh();
+    // Cihazın bağlı olup olmadığını kontrol et
+    Wire.beginTransmission(RTC_ADDRESS);
+    if (Wire.endTransmission() == 0)
+    { // 0: Cihaz bağlı
+        Serial.println("RTC cihazı algılandı.");
 
-    // Epprom_Update_From_PC();
+        // RTC başlatma işlemleri
+        URTCLIB_WIRE.begin();
+        rtc.set_rtc_address(RTC_ADDRESS);
+        rtc.set_model(rtcModel);
+        rtc.refresh();
 
-    timeClient.update();
+        Serial.println("RTC başlatıldı.");
 
-    currentDayofWeek = timeClient.getDay();
-    currentYear = readEEPROM(60);
-    currentMonth = readEEPROM(50);
-    currentDay = readEEPROM(40);
-    currentSecond = timeClient.getSeconds();
-    currentMinute = timeClient.getMinutes();
-    currentHour = timeClient.getHours();
+        timeClient.update();
 
-    //
-    //
-    // Yalnızca bir kez kullanın, ardından devre dışı bırakın
-    rtc.set(currentSecond, currentMinute, currentHour, currentDayofWeek, currentDay, currentMonth, currentYear);
-    // rtc.set(second, minute, hour, dayOfWeek, dayOfMonth, month, year)
-    //
-    //
+        currentDayofWeek = timeClient.getDay();
+        currentYear = EEPROMRead(60);
+        currentMonth = EEPROMRead(50);
+        currentDay = EEPROMRead(40);
+        currentSecond = timeClient.getSeconds();
+        currentMinute = timeClient.getMinutes();
+        currentHour = timeClient.getHours();
 
-    rtc.set_12hour_mode(false);
+        //
+        //
+        // Yalnızca bir kez kullanın, ardından devre dışı bırakın
+        rtc.set(currentSecond, currentMinute, currentHour, currentDayofWeek, currentDay, currentMonth, currentYear);
+        // rtc.set(second, minute, hour, dayOfWeek, dayOfMonth, month, year)
+        //
+        //
 
-    if (rtc.enableBattery())
-    {
-        Serial.println("[Info]: RTC Pil doğru şekilde etkinleştirildi.");
+        rtc.set_12hour_mode(false);
+
+        if (rtc.enableBattery())
+        {
+            Serial.println("[Info]: RTC Pil doğru şekilde etkinleştirildi.");
+        }
+        else
+        {
+            Serial.println("[Info]: RTC Pil etkinleştirilirken HATA.");
+        }
+
+        // OSC'nin VBAT kullanacak şekilde ayarlanıp ayarlanmadığını kontrol edin
+        if (rtc.getEOSCFlag())
+            Serial.println(F("[Info]: Osilatör, VCC kesildiğinde VBAT'ı kullanmayacaktır. VCC olmadan zaman artmaz!"));
+        else
+            Serial.println(F("[Info]: Osilatör, VCC kesildiğinde VBAT'ı kullanacaktır."));
+
+        Serial.print("[Info]: Kayıp güç durumu:");
+        if (rtc.lostPower())
+        {
+            Serial.print("GÜÇ KESİLDİ. Bayrak temizleniyor...");
+            rtc.lostPowerClear();
+            Serial.println(" Tamamlandı.");
+        }
+        else
+        {
+            Serial.println(" GÜÇ TAMAM");
+        }
+        Serial.println();
+
+        // SRAM'ı ayarlayın (DS3231'de SRAM yoktur, dolayısıyla hiçbir şey saklamaz ve her zaman 0xff değerini döndürür)
+        for (position = 0; position < 255; position++)
+        {
+            rtc.ramWrite(position, position);
+        }
+        position = 0;
     }
     else
     {
-        Serial.println("[Info]: RTC Pil etkinleştirilirken HATA.");
+#define WiFi_clock
+#undef WiFi_and_RTC_clock
+
+        URTCLIB_WIRE.end();
+        Wire.end();
+
+        NTPTimeUpdate();
     }
 
-    // OSC'nin VBAT kullanacak şekilde ayarlanıp ayarlanmadığını kontrol edin
-    if (rtc.getEOSCFlag())
-        Serial.println(F("[Info]: Osilatör, VCC kesildiğinde VBAT'ı kullanmayacaktır. VCC olmadan zaman artmaz!"));
-    else
-        Serial.println(F("[Info]: Osilatör, VCC kesildiğinde VBAT'ı kullanacaktır."));
-
-    Serial.print("[Info]: Kayıp güç durumu:");
-    if (rtc.lostPower())
-    {
-        Serial.print("GÜÇ KESİLDİ. Bayrak temizleniyor...");
-        rtc.lostPowerClear();
-        Serial.println(" Tamamlandı.");
-    }
-    else
-    {
-        Serial.println(" GÜÇ TAMAM");
-    }
-    Serial.println();
-
-    // SRAM'ı ayarlayın (DS3231'de SRAM yoktur, dolayısıyla hiçbir şey saklamaz ve her zaman 0xff değerini döndürür)
-    for (position = 0; position < 255; position++)
-    {
-        rtc.ramWrite(position, position);
-    }
-    position = 0;
+#elif defined(WiFi_clock)
+    NTPTimeUpdate();
+    Serial.println("[Info]: Cihaz saati Online olarak ayarlandı.");
+#endif
 }
 
-void Starting_SerialandApps()
+void StartingSerialandApps()
 {
     Serial.begin(115200);
     Serial.println("HMI Başlatılıyor. ");
@@ -259,7 +469,7 @@ void Starting_SerialandApps()
     Serial.print(" >>> ");
     Serial.print(UYGULAMA);
     Serial.print(" / ");
-    Serial.println(VERSIYON);
+    Serial.println("Firmware Version: " CURRENT_VERSION);
     Serial.printf("\r\n");
     vTaskDelay(10);
     Serial.flush();
@@ -283,10 +493,10 @@ void Starting_SerialandApps()
 void setup()
 {
     pins();                    // Pin Tanımlamaları
-    Starting_SerialandApps();  // İlk çalıştırılan uygulama ve seri port mesajları
+    StartingSerialandApps();   // İlk çalıştırılan uygulama ve seri port mesajları
     EEPROM.begin(EEPROM_SIZE); // EEPROM'i başlat
-
-    Wifi_Starting(); // Wifi Başlatma Uygulamalrı
+    WifiStarting();            // Wifi Başlatma Uygulamalrı
+    AmplificatorStarting();    // MAX98 Entegresini devreye al
 
     /////////////////////////////////////////////// Başlangıç Uygulamarı Sonrası İlk Fonksiyonlar
 
@@ -297,18 +507,17 @@ void setup()
         Serial.println();
 
         wifi_alarm = true;
-
-        RTC_Starting_Offline();
+        TimeStartingOffline();
     }
     else // WİFİ BAĞLANTISI BAŞARILIYSA BU FONKSYONLARI YAP.
     {
-        Amplificator_Starting(); // MAX98 Entegresini devreye al
-        timeClient.begin();      // NTP istemcisini başlatma
-        first_time_update = true;
-        Firebase_Server_Starting(); // Firebase Başlatma Uygulamalrı
-        RTC_Starting_Online();
-        timeClient.end(); // NTP istemcisini BİTİRME
+        wifi_alarm = false;
+
+        timeClient.begin(); // NTP istemcisini başlatma
+        TimeStartingOnline();
+        FirebaseServerStarting(); // Firebase Başlatma Uygulamalrı
     }
+    first_time_update = true;
 
     // Görevleri oluştur ve farklı çekirdeklerde çalıştır
     xTaskCreate(TaskTimeControl, "Time Control Task", 4096, NULL, 7, NULL);
