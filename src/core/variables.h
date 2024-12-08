@@ -52,7 +52,7 @@ FirebaseConfig config;
 int motor_lap_count, wtr_lvl, noisy = 0;
 bool switch_durum, feed_mode, EEPROM_Time_Update, first_time_update = false;
 bool alarm_status, sikisma_alarm, noisy_alarm, max_water_alarm, min_water_alarm, wifi_alarm = false;
-String hata_kodu = "";
+String hata_kodu, latestVersion, firmwareURL = "";
 
 unsigned long buttonPressStartTime = 0;
 bool buttonHeld = false;
@@ -126,6 +126,7 @@ int CPU_Temperature, last_boot_sure = 0;
 // ****************************************
 // TASKS ***********************************
 
+void TaskOTA(void *pvParameters);
 void TaskServerConnection(void *pvParameters);
 void TaskButtonControl(void *pvParameters);
 void TaskWaterFeeder(void *pvParameters);

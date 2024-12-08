@@ -5,16 +5,23 @@
 #include "WiFi.h"
 #include "Audio.h"
 #include <WiFiUdp.h>
-#include <NTPClient.h>
-#include <Adafruit_NeoPixel.h>
 #include <EEPROM.h>
 #include <esp_system.h>
 #include <esp_spi_flash.h>
+
+#include <ArduinoJson.h>
+#include "uRTCLib.h"
+#include <NTPClient.h>
+
 #include <Firebase_ESP_Client.h>
 #include "addons/TokenHelper.h"
 #include "addons/RTDBHelper.h"
-#include <ArduinoJson.h>
-#include "uRTCLib.h"
+
+//#include <Update.h>
+#include <HTTPUpdate.h>
+#include <WiFiClientSecure.h>
+
+#include <Adafruit_NeoPixel.h>
 
 #include <PETVET_config.h>
 

@@ -3,6 +3,15 @@
 // ****************************************
 // TASKS ***********************************
 
+void TaskOTA(void *parameter)
+{
+    while (true)
+    {
+        VersionControlAndUpdate(); // Günlük olarak güncellemeleri kontrol et.
+        
+        vTaskDelay(10000 / portTICK_PERIOD_MS); // 0.1 Hz
+    }
+}
 void TaskServerConnection(void *pvParameters)
 {
     while (true)
@@ -307,35 +316,28 @@ void TaskSerialPortReport(void *pvParameters)
             Serial.printf(" ~ Güç             : %% %d   %.1fv / %s\n\n",
                           (int)batterylevel, V_Battery, charge_mod ? "Şarj Ediliyor." : "Pil Gücünde.");
 
-            uint32_t cpuFreq = ESP.getCpuFreqMHz();
-            int CPU_Temperature = (temprature_sens_read() - 32) / 1.8;
-            Serial.printf(" ~ CPU Frequency   : %d MHz / T:%d°C\n\n", cpuFreq, CPU_Temperature);
-
-            uint32_t totalHeap = ESP.getHeapSize();
-            uint32_t freeHeap = ESP.getFreeHeap();
-            float heapUsage = (float)(totalHeap - freeHeap) / totalHeap * 100.0;
-            Serial.printf(" ~ Total RAM Size  : %d KB\n", totalHeap / 1024);
-            Serial.printf(" ~ Free RAM        : %d KB (%% %.1f)\n\n", freeHeap / 1024, heapUsage);
-
-            esp_partition_iterator_t it = esp_partition_find(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_ANY, NULL);
-            if (it != NULL)
-            {
-                const esp_partition_t *partition = esp_partition_get(it);
-                uint32_t totalROM = partition->size / 1024;
-                uint32_t usingROM = ESP.getSketchSize() / 1024;
-                float ROMsage = (float)(totalROM - usingROM) / totalROM * 100.0;
-                Serial.printf(" ~ Total ROM Size  : %d KB\n", totalROM);
-                Serial.printf(" ~ Free ROM        : %d KB (%% %.1f)\n\n", totalROM - usingROM, ROMsage);
-                esp_partition_iterator_release(it);
-            }
-            else
-            {
-                Serial.println("[ERROR]: Failed to get partition information!");
-            }
-
+            ////////////////////////////////////// SYSTEM
             int32_t rssi = WiFi.RSSI();
             Serial.printf(" ~ WiFi RSSI       : %d dBm\n", rssi);
-            Serial.printf(" ~ Device ID       : %d\n\n\n", DEVICE_ID);
+
+            // CPU Frekansı
+            uint32_t cpuFreq = ESP.getCpuFreqMHz();
+            Serial.printf(" ~ CPU Frequency   : %d MHz\n", cpuFreq);
+
+            // RAM Bilgisi
+            uint32_t freeHeap = ESP.getFreeHeap(); // ESP8266'daki mevcut RAM bilgisi
+            Serial.printf(" ~ Free RAM        : %d KB\n", freeHeap / 1024);
+
+            // ROM Bilgisi (Flash Bellek)
+            uint32_t totalFlash = ESP.getFlashChipSize();
+            uint32_t sketchSize = ESP.getSketchSize();
+            uint32_t freeFlash = ESP.getFreeSketchSpace();
+            float flashUsage = (float)(sketchSize) / totalFlash * 100.0;
+
+            Serial.printf(" ~ Total Flash Size: %d KB\n", totalFlash / 1024);
+            Serial.printf(" ~ Used Flash      : %d KB\n", sketchSize / 1024);
+            Serial.printf(" ~ Free Flash      : %d KB (%% %.1f)\n\n", freeFlash / 1024, 100.0 - flashUsage);
+            Serial.printf(" ~ Device ID       : %d\n\n", DEVICE_ID);
         }
         else
         {

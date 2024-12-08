@@ -1,4 +1,101 @@
 #include <core/variables.h>
+
+/////////////////////   OTO GÜNCELLEME FONKSİYONLARI    ////////////////////////////////////////////////////////////////////////////////////////////
+
+void performOTAUpdate(String url)
+{
+    Serial.println("Downloading firmware from: " + url);
+
+    WiFiClientSecure client;
+
+    client.setInsecure(); // Sertifika doğrulamasını devre dışı bırak
+
+    t_httpUpdate_return ret = httpUpdate.update(client, url); // 'ESPhttpUpdate' yerine 'httpUpdate'
+
+    int retryCount, basarisiz = 0;
+
+    switch (ret)
+    {
+    case HTTP_UPDATE_FAILED:
+        Serial.printf("HTTP_UPDATE_FAILED Error (%d): %s\n\n",
+                      httpUpdate.getLastError(),
+                      httpUpdate.getLastErrorString().c_str());
+
+        basarisiz = 1;
+
+        break;
+
+    case HTTP_UPDATE_NO_UPDATES:
+        Serial.println("HTTP_UPDATE_NO_UPDATES");
+        break;
+
+    case HTTP_UPDATE_OK:
+        Serial.println("HTTP_UPDATE_OK");
+        delay(2000);
+        // ESP.restart();
+        break;
+    }
+
+    if (basarisiz == 1)
+    {
+        while (retryCount < 3)
+        {
+            t_httpUpdate_return ret = httpUpdate.update(client, url);
+            if (ret == HTTP_UPDATE_OK)
+                break; // Başarılı ise döngüden çık
+            retryCount++;
+            delay(2000); // Bekleme süresi
+        }
+    }
+}
+
+void VersionControlAndUpdate()
+{
+
+    String VeriYolu = "UPDATES/PetVet/version"; // Firebase'deki versiyon bilgisi yolunu belirtin
+
+    if (Firebase.RTDB.getString(&fbdo, VeriYolu)) // Firebase'den versiyon bilgisini al
+    {
+        latestVersion = fbdo.stringData();
+
+        Serial.println();
+        Serial.println("[Info]: Mevcut Versiyon: " + String(CURRENT_VERSION));
+        Serial.println("[Info]: Sunucudaki Versiyon: " + latestVersion);
+        Serial.println();
+
+        if (latestVersion != String(CURRENT_VERSION)) // Yeni bir versiyon varsa
+        {
+            Serial.println("[Info]: Yeni versiyon mevcut! Güncelleme başlatılıyor...");
+            VeriYolu = "UPDATES/PetVet/url"; // Firebase'den güncelleme dosyasının URL'sini al
+
+            if (Firebase.RTDB.getString(&fbdo, VeriYolu)) // URL'yi al
+            {
+                firmwareURL = fbdo.stringData();
+                performOTAUpdate(firmwareURL); // OTA güncellemesini başlat
+            }
+            else
+            {
+                Serial.print("[ERROR]: Güncelleme Dosyasının kontrolü başarısız. Nedeni: ");
+                if (fbdo.httpCode() != 200) // Hata kontrolü
+                {
+                    Serial.println("HTTP Kod: " + String(fbdo.httpCode()));
+                    Serial.println("Hata Sebebi: " + fbdo.errorReason());
+                }
+            }
+        }
+        else
+        {
+            Serial.println("[Info]: Cihaz Güncel Durumda.");
+        }
+    }
+    else
+    {
+        Serial.print("[ERROR]: Versiyon kontrolü başarısız. Nedeni: ");
+        Serial.println("HTTP Kod: " + String(fbdo.httpCode()));
+        Serial.println("Hata Sebebi: " + fbdo.errorReason());
+    }
+}
+
 /////////////////////   ZAMAN TAKİP FONKSİYONLARI    ////////////////////////////////////////////////////////////////////////////////////////////
 
 void FeedTimeTrackingFunction()
@@ -266,27 +363,28 @@ void NTPTimeUpdateOffline()
     Serial.println(currentSecond);
 
     int seconddiffent, minutediffent, hourdiffent;
+    int currentDayofWeekEEPROM, currentYearEEPROM, currentMonthEEPROM, currentDayEEPROM, currentSecondEEPROM, currentMinuteEEPROM, currentHourEEPROM;
 
     if (!LocalClockControl)
     {
-        int currentDayofWeekEEPROM = EEPROMRead(DAY_OF_WEEK_ADDRESS);
-        int currentYearEEPROM = EEPROMRead(YEAR_ADDRESS);
-        int currentMonthEEPROM = EEPROMRead(MONTH_ADDRESS);
-        int currentDayEEPROM = EEPROMRead(DAY_ADDRESS);
-        int currentSecondEEPROM = EEPROMRead(SECOND_ADDRESS);
-        int currentMinuteEEPROM = EEPROMRead(MINUTE_ADDRESS);
-        int currentHourEEPROM = EEPROMRead(HOUR_ADDRESS);
+        currentDayofWeekEEPROM = EEPROMRead(DAY_OF_WEEK_ADDRESS);
+        currentYearEEPROM = EEPROMRead(YEAR_ADDRESS);
+        currentMonthEEPROM = EEPROMRead(MONTH_ADDRESS);
+        currentDayEEPROM = EEPROMRead(DAY_ADDRESS);
+        currentSecondEEPROM = EEPROMRead(SECOND_ADDRESS);
+        currentMinuteEEPROM = EEPROMRead(MINUTE_ADDRESS);
+        currentHourEEPROM = EEPROMRead(HOUR_ADDRESS);
         LocalClockControl = true;
     }
     else
     {
-        int currentDayofWeekEEPROM = currentDayofWeek;
-        int currentYearEEPROM = currentYear;
-        int currentMonthEEPROM = currentMonth;
-        int currentDayEEPROM = currentDay;
-        int currentSecondEEPROM = currentSecond;
-        int currentMinuteEEPROM = currentMinute;
-        int currentHourEEPROM = currentHour;
+        currentDayofWeekEEPROM = currentDayofWeek;
+        currentYearEEPROM = currentYear;
+        currentMonthEEPROM = currentMonth;
+        currentDayEEPROM = currentDay;
+        currentSecondEEPROM = currentSecond;
+        currentMinuteEEPROM = currentMinute;
+        currentHourEEPROM = currentHour;
     }
 
     ////////////////////////////////////////////////////// SECOND

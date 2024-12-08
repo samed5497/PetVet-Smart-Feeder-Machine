@@ -534,6 +534,7 @@ void setup()
     xTaskCreate(TaskFoodLevelControl, "Food Control Task", 2048, NULL, 1, NULL);
     xTaskCreate(TaskSerialPortReport, "Report Task", 4096, NULL, 1, NULL);
     xTaskCreate(TaskBatteryControl, "Battery Control Task", 1024, NULL, 0, NULL);
+    xTaskCreate(TaskOTA, "ota Task", 16384, NULL, 8, NULL);
 
     /*
     1 KB = 256 kelime (stack size)
