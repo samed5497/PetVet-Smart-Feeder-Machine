@@ -35,7 +35,8 @@ void TaskSerialPortReport(void *parameter);
 bool updating = false;                // Güncelleme durumu
 TaskHandle_t serialTaskHandle = NULL; // Seri port raporu görev tanıtıcı
 
-void performOTAUpdate(String url) // OTA güncelleme işlemi
+// OTA güncelleme işlemi
+void performOTAUpdate(String url)
 {
     Serial.println("Firmware indiriliyor: " + url);
 
@@ -105,10 +106,12 @@ void performOTAUpdate(String url) // OTA güncelleme işlemi
     http.end();
 }
 
-void checkForOTAUpdate() // OTA güncelleme kontrol fonksiyonu
+// OTA güncelleme kontrol fonksiyonu
+void checkForOTAUpdate()
 {
     Serial.println("\n--- OTA Güncelleme Kontrolü Başlıyor ---");
 
+    // Firebase'den versiyon bilgisi alınır
     if (Firebase.RTDB.getString(&fbdo, "UPDATES/PetVet/version"))
     {
         String latestVersion = fbdo.stringData();
@@ -119,6 +122,7 @@ void checkForOTAUpdate() // OTA güncelleme kontrol fonksiyonu
         {
             Serial.println("[Info]: Yeni versiyon mevcut! Güncelleme başlatılıyor...");
 
+            // URL bilgisi alınır
             if (Firebase.RTDB.getString(&fbdo, "UPDATES/PetVet/url"))
             {
                 String firmwareURL = fbdo.stringData();
@@ -140,7 +144,8 @@ void checkForOTAUpdate() // OTA güncelleme kontrol fonksiyonu
     }
 }
 
-void TaskOTA(void *parameter) // Task: OTA güncelleme kontrolü
+// Task: OTA güncelleme kontrolü
+void TaskOTA(void *parameter)
 {
     for (;;)
     {
@@ -152,7 +157,8 @@ void TaskOTA(void *parameter) // Task: OTA güncelleme kontrolü
     }
 }
 
-void TaskSerialPortReport(void *parameter) // Task: Seri port raporu
+// Task: Seri port raporu
+void TaskSerialPortReport(void *parameter)
 {
     for (;;)
     {
@@ -160,11 +166,12 @@ void TaskSerialPortReport(void *parameter) // Task: Seri port raporu
         {
             Serial.printf("Free Heap: %d bytes\n Min Free Heap: %d bytes\n", ESP.getFreeHeap(), ESP.getMinFreeHeap());
         }
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        vTaskDelay(pdMS_TO_TICKS(1000)); // 1 saniye bekle
     }
 }
 
-void setup() // setup() ve FreeRTOS görev oluşturma
+// setup() ve FreeRTOS görev oluşturma
+void setup()
 {
     Serial.begin(115200);
 
@@ -202,7 +209,9 @@ void setup() // setup() ve FreeRTOS görev oluşturma
     xTaskCreate(TaskSerialPortReport, "Serial Report Task", 2048, NULL, 1, &serialTaskHandle);
 }
 
-void loop() // loop() işlevi boş bırakıldı
+// loop() işlevi boş bırakıldı
+void loop()
 {
+    // FreeRTOS, görevleri bağımsız olarak yönetir
 }
 #endif

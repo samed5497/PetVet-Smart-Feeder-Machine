@@ -2,97 +2,243 @@
 
 /////////////////////   OTO GÜNCELLEME FONKSİYONLARI    ////////////////////////////////////////////////////////////////////////////////////////////
 
-void performOTAUpdate(String url)
+void RESUMEALLTASKS()
 {
-    Serial.println("Downloading firmware from: " + url);
-
-    WiFiClientSecure client;
-
-    client.setInsecure(); // Sertifika doğrulamasını devre dışı bırak
-
-    t_httpUpdate_return ret = httpUpdate.update(client, url); // 'ESPhttpUpdate' yerine 'httpUpdate'
-
-    int retryCount, basarisiz = 0;
-
-    switch (ret)
+    if (TaskTimeControlHandle != NULL)
     {
-    case HTTP_UPDATE_FAILED:
-        Serial.printf("HTTP_UPDATE_FAILED Error (%d): %s\n\n",
-                      httpUpdate.getLastError(),
-                      httpUpdate.getLastErrorString().c_str());
-
-        basarisiz = 1;
-
-        break;
-
-    case HTTP_UPDATE_NO_UPDATES:
-        Serial.println("HTTP_UPDATE_NO_UPDATES");
-        break;
-
-    case HTTP_UPDATE_OK:
-        Serial.println("HTTP_UPDATE_OK");
-        delay(2000);
-        // ESP.restart();
-        break;
+        vTaskResume(TaskTimeControlHandle);
     }
-
-    if (basarisiz == 1)
+    if (TaskFeederHandle != NULL)
     {
-        while (retryCount < 3)
-        {
-            t_httpUpdate_return ret = httpUpdate.update(client, url);
-            if (ret == HTTP_UPDATE_OK)
-                break; // Başarılı ise döngüden çık
-            retryCount++;
-            delay(2000); // Bekleme süresi
-        }
+        vTaskResume(TaskFeederHandle);
     }
+    if (TaskSoundControlHandle != NULL)
+    {
+        vTaskResume(TaskSoundControlHandle);
+    }
+    if (TaskServerConnectionHandle != NULL)
+    {
+        vTaskResume(TaskServerConnectionHandle);
+    }
+    if (TaskButtonControlHandle != NULL)
+    {
+        vTaskResume(TaskButtonControlHandle);
+    }
+    if (TaskFeederFlowControlHandle != NULL)
+    {
+        vTaskResume(TaskFeederFlowControlHandle);
+    }
+    if (TaskAlarmControlHandle != NULL)
+    {
+        vTaskResume(TaskAlarmControlHandle);
+    }
+    if (TaskLightControlHandle != NULL)
+    {
+        vTaskResume(TaskLightControlHandle);
+    }
+    if (TaskWaterFeederHandle != NULL)
+    {
+        vTaskResume(TaskWaterFeederHandle);
+    }
+    if (TaskMicControlHandle != NULL)
+    {
+        vTaskResume(TaskMicControlHandle);
+    }
+    if (TaskWaterLevelControlHandle != NULL)
+    {
+        vTaskResume(TaskWaterLevelControlHandle);
+    }
+    if (TaskFoodLevelControlHandle != NULL)
+    {
+        vTaskResume(TaskFoodLevelControlHandle);
+    }
+    if (TaskSerialPortReportHandle != NULL)
+    {
+        vTaskResume(TaskSerialPortReportHandle);
+    }
+    if (TaskBatteryControlHandle != NULL)
+    {
+        vTaskResume(TaskBatteryControlHandle);
+    }
+    Serial.println("Tüm görevler yeniden başlatıldı.");
 }
 
-void VersionControlAndUpdate()
+void STOPALLTASKSFORUPDATE()
 {
-
-    String VeriYolu = "UPDATES/PetVet/version"; // Firebase'deki versiyon bilgisi yolunu belirtin
-
-    if (Firebase.RTDB.getString(&fbdo, VeriYolu)) // Firebase'den versiyon bilgisini al
+    if (TaskTimeControlHandle != NULL)
     {
-        latestVersion = fbdo.stringData();
+        vTaskSuspend(TaskTimeControlHandle);
+    }
+    if (TaskFeederHandle != NULL)
+    {
+        vTaskSuspend(TaskFeederHandle);
+    }
+    if (TaskSoundControlHandle != NULL)
+    {
+        vTaskSuspend(TaskSoundControlHandle);
+    }
+    if (TaskServerConnectionHandle != NULL)
+    {
+        vTaskSuspend(TaskServerConnectionHandle);
+    }
+    if (TaskButtonControlHandle != NULL)
+    {
+        vTaskSuspend(TaskButtonControlHandle);
+    }
+    if (TaskFeederFlowControlHandle != NULL)
+    {
+        vTaskSuspend(TaskFeederFlowControlHandle);
+    }
+    if (TaskAlarmControlHandle != NULL)
+    {
+        vTaskSuspend(TaskAlarmControlHandle);
+    }
+    if (TaskLightControlHandle != NULL)
+    {
+        vTaskSuspend(TaskLightControlHandle);
+    }
+    if (TaskWaterFeederHandle != NULL)
+    {
+        vTaskSuspend(TaskWaterFeederHandle);
+    }
+    if (TaskMicControlHandle != NULL)
+    {
+        vTaskSuspend(TaskMicControlHandle);
+    }
+    if (TaskWaterLevelControlHandle != NULL)
+    {
+        vTaskSuspend(TaskWaterLevelControlHandle);
+    }
+    if (TaskFoodLevelControlHandle != NULL)
+    {
+        vTaskSuspend(TaskFoodLevelControlHandle);
+    }
+    if (TaskSerialPortReportHandle != NULL)
+    {
+        vTaskSuspend(TaskSerialPortReportHandle);
+    }
+    if (TaskBatteryControlHandle != NULL)
+    {
+        vTaskSuspend(TaskBatteryControlHandle);
+    }
+    Serial.println("Tüm görevler güncelleme için durduruldu.");
+}
 
-        Serial.println();
-        Serial.println("[Info]: Mevcut Versiyon: " + String(CURRENT_VERSION));
-        Serial.println("[Info]: Sunucudaki Versiyon: " + latestVersion);
-        Serial.println();
+void DELETEALLTASKSFORUPDATE()
+{
+    vTaskSuspend(TaskTimeControlHandle);
+    vTaskSuspend(TaskFeederHandle);
+    vTaskSuspend(TaskSoundControlHandle);
+    vTaskSuspend(TaskServerConnectionHandle);
+    vTaskSuspend(TaskButtonControlHandle);
+    vTaskSuspend(TaskFeederFlowControlHandle);
+    vTaskSuspend(TaskAlarmControlHandle);
+    vTaskSuspend(TaskLightControlHandle);
+    vTaskSuspend(TaskWaterFeederHandle);
+    vTaskSuspend(TaskMicControlHandle);
+    vTaskSuspend(TaskWaterLevelControlHandle);
+    vTaskSuspend(TaskFoodLevelControlHandle);
+    vTaskSuspend(TaskSerialPortReportHandle);
+    vTaskSuspend(TaskBatteryControlHandle);
+}
 
-        if (latestVersion != String(CURRENT_VERSION)) // Yeni bir versiyon varsa
+void performOTAUpdate(String url) // OTA güncelleme işlemi
+{
+    Serial.println("[Info]: Firmware indiriliyor: " + url);
+
+    HTTPClient http;
+    http.begin(url);
+
+    int httpCode = http.GET();
+    if (httpCode == HTTP_CODE_OK)
+    {
+        WiFiClient *client = http.getStreamPtr();
+        size_t contentLength = http.getSize();
+
+        if (contentLength > 0 && Update.begin(contentLength))
         {
-            Serial.println("[Info]: Yeni versiyon mevcut! Güncelleme başlatılıyor...");
-            VeriYolu = "UPDATES/PetVet/url"; // Firebase'den güncelleme dosyasının URL'sini al
+            size_t written = 0;
+            int lastPercentage = 0; // Son yazdırılan yüzde değeri
 
-            if (Firebase.RTDB.getString(&fbdo, VeriYolu)) // URL'yi al
+            // Diğer görevleri durdur
+            updating = true;
+            STOPALLTASKSFORUPDATE();
+
+            while (written < contentLength)
             {
-                firmwareURL = fbdo.stringData();
-                performOTAUpdate(firmwareURL); // OTA güncellemesini başlat
+                uint8_t buffer[128];
+                size_t bytesRead = client->readBytes(buffer, sizeof(buffer));
+                written += Update.write(buffer, bytesRead);
+                delay(1); // RTOS'a zaman tanımak için
+
+                // Yüzde hesaplama ve seri porta yazdırma
+                int percentage = (written * 100) / contentLength;
+                if (percentage - lastPercentage >= 5) // 5'er 5'er güncelle
+                {
+                    Serial.printf("[Info]: Yükleme durumu: %d%%\n", percentage);
+                    lastPercentage = percentage;
+                }
+            }
+
+            if (Update.end(true))
+            {
+                Serial.println("[Info]: OTA başarılı! Cihaz yeniden başlatılıyor...");
+                ESP.restart();
             }
             else
             {
-                Serial.print("[ERROR]: Güncelleme Dosyasının kontrolü başarısız. Nedeni: ");
-                if (fbdo.httpCode() != 200) // Hata kontrolü
-                {
-                    Serial.println("HTTP Kod: " + String(fbdo.httpCode()));
-                    Serial.println("Hata Sebebi: " + fbdo.errorReason());
-                }
+                Serial.printf("[ERROR]: OTA doğrulama hatası: %s\n", Update.errorString());
             }
+            /*
+                        // Diğer görevleri devam ettir
+                        updating = false;
+                        RESUMEALLTASKS();
+                        */
         }
         else
         {
-            Serial.println("[Info]: Cihaz Güncel Durumda.");
+            Serial.println("[ERROR]: Geçersiz firmware boyutu veya OTA başlangıç hatası!");
         }
     }
     else
     {
-        Serial.print("[ERROR]: Versiyon kontrolü başarısız. Nedeni: ");
-        Serial.println("HTTP Kod: " + String(fbdo.httpCode()));
-        Serial.println("Hata Sebebi: " + fbdo.errorReason());
+        Serial.printf("[ERROR]: HTTP Hatası: %s\n", http.errorToString(httpCode).c_str());
+    }
+    http.end();
+}
+
+void checkForOTAUpdate() // OTA güncelleme kontrol fonksiyonu
+{
+    Serial.println("\n--- OTA Güncelleme Kontrolü Başlıyor ---");
+
+    if (Firebase.RTDB.getString(&fbdo, "UPDATES/PetVet/version"))
+    {
+        String latestVersion = fbdo.stringData();
+        Serial.println("[Info]: Mevcut Versiyon: " + String(CURRENT_VERSION));
+        Serial.println("[Info]: Sunucudaki Versiyon: " + latestVersion);
+
+        if (latestVersion != CURRENT_VERSION)
+        {
+            Serial.println("[Info]: Yeni versiyon mevcut! Güncelleme başlatılıyor...");
+
+            if (Firebase.RTDB.getString(&fbdo, "UPDATES/PetVet/url"))
+            {
+                String firmwareURL = fbdo.stringData();
+                performOTAUpdate(firmwareURL);
+            }
+            else
+            {
+                Serial.println("[ERROR]: Güncelleme URL'si alınamadı: " + fbdo.errorReason());
+            }
+        }
+        else
+        {
+            Serial.println("[Info]: Cihaz güncel durumda.");
+        }
+    }
+    else
+    {
+        Serial.println("[ERROR]: Versiyon bilgisi alınamadı: " + fbdo.errorReason());
     }
 }
 
@@ -251,35 +397,38 @@ int EEPROMRead(int address) // EEPROM'dan veri okumak için fonksiyon
 
 void writeTimetoEEPROM() // Zaman değerlerini EEPROM'a yazma işlemi
 {
-    if (currentDayofWeek != EEPROMRead(70))
+    if (currentDayofWeek != EEPROMRead(DAY_OF_WEEK_ADDRESS))
     {
-        EEPROMWrite(70, currentDayofWeek);
+        EEPROMWrite(DAY_OF_WEEK_ADDRESS, currentDayofWeek);
         vTaskDelay(5);
-        EEPROMWrite(40, currentDay);
+        EEPROMWrite(DAY_ADDRESS, currentDay);
         vTaskDelay(5);
-        EEPROMWrite(50, currentMonth);
+        EEPROMWrite(MONTH_ADDRESS, currentMonth);
         vTaskDelay(5);
-        EEPROMWrite(60, currentYear);
+        EEPROMWrite(YEAR_ADDRESS, currentYear);
         vTaskDelay(5);
         Serial.printf("[Info]: Hafızadaki Gün Güncellendi: %d\n", currentDayofWeek);
     }
-    if (currentHour != EEPROMRead(10))
+    if (currentHour != EEPROMRead(HOUR_ADDRESS))
     {
-        EEPROMWrite(10, currentHour);
+        EEPROMWrite(HOUR_ADDRESS, currentHour);
         vTaskDelay(5);
         Serial.printf("[Info]: Hafızadaki Saat Güncellendi: %d\n", currentHour);
         Local_Time_Report = true;
     }
-    if (currentMinute != EEPROMRead(20))
+    if (currentMinute != EEPROMRead(MINUTE_ADDRESS))
     {
-        EEPROMWrite(20, currentMinute);
+        EEPROMWrite(MINUTE_ADDRESS, currentMinute);
         vTaskDelay(5);
         Serial.printf("[Info]: Hafızadaki Dakika Güncellendi: %d\n", currentMinute);
-        // device_server_report = true;
+        if (currentMillis > 60000)
+        {
+            Serial.println(currentMillis);
+        }
     }
-    if (currentSecond != EEPROMRead(30))
+    if (currentSecond != EEPROMRead(SECOND_ADDRESS))
     {
-        EEPROMWrite(30, currentSecond);
+        EEPROMWrite(SECOND_ADDRESS, currentSecond);
         vTaskDelay(5);
         Serial.printf("[Info]: Hafızadaki Saniye Güncellendi: %d\n", currentSecond);
     }
@@ -342,19 +491,38 @@ void Epprom_Update_From_PC()
 */
 
 /////////////////////   ZAMAN YÖNETİM FONKSİYONLARI    ////////////////////////////////////////////////////////////////////////////////////////////
-void NTPTimeUpdateOffline()
+
+void NTPTimeUpdate()
 {
     timeClient.update();
 
     currentDayofWeek = timeClient.getDay();
-    currentYear = EEPROMRead(60);
-    currentMonth = EEPROMRead(50);
-    currentDay = EEPROMRead(40);
+    currentYear = 24;
+    currentMonth = 12;
+    currentDay = 10;
+    /*
+    currentYear = EEPROMRead(YEAR_ADDRESS);
+    currentMonth = EEPROMRead(MONTH_ADDRESS);
+    currentDay = EEPROMRead(DAY_ADDRESS);
+
+    currentYear = timeClient.getYear();
+    currentMonth = timeClient.getMonth();
+    currentDay = timeClient.getDay();
+    */
     currentSecond = timeClient.getSeconds();
     currentMinute = timeClient.getMinutes();
     currentHour = timeClient.getHours();
+}
+
+void NTPTimeUpdateOffline()
+{
+    // [BUILDING] = Buraya eepromdan okudugu degeri timeclient sunucusunun varsayılan başlatma ayarı olarak ata.
+
+    NTPTimeUpdate();
 
     Serial.println("[INFO]: ÖNCESİ:");
+    Serial.print("currentDayofWeek: ");
+    Serial.println(currentDayofWeek);
     Serial.print("currentHour: ");
     Serial.println(currentHour);
     Serial.print("currentMinute: ");
@@ -362,29 +530,20 @@ void NTPTimeUpdateOffline()
     Serial.print("currentSecond: ");
     Serial.println(currentSecond);
 
-    int seconddiffent, minutediffent, hourdiffent;
-    int currentDayofWeekEEPROM, currentYearEEPROM, currentMonthEEPROM, currentDayEEPROM, currentSecondEEPROM, currentMinuteEEPROM, currentHourEEPROM;
-
     if (!LocalClockControl)
     {
-        currentDayofWeekEEPROM = EEPROMRead(DAY_OF_WEEK_ADDRESS);
         currentYearEEPROM = EEPROMRead(YEAR_ADDRESS);
         currentMonthEEPROM = EEPROMRead(MONTH_ADDRESS);
         currentDayEEPROM = EEPROMRead(DAY_ADDRESS);
+        currentDayofWeekEEPROM = EEPROMRead(DAY_OF_WEEK_ADDRESS);
         currentSecondEEPROM = EEPROMRead(SECOND_ADDRESS);
         currentMinuteEEPROM = EEPROMRead(MINUTE_ADDRESS);
         currentHourEEPROM = EEPROMRead(HOUR_ADDRESS);
+
         LocalClockControl = true;
     }
     else
     {
-        currentDayofWeekEEPROM = currentDayofWeek;
-        currentYearEEPROM = currentYear;
-        currentMonthEEPROM = currentMonth;
-        currentDayEEPROM = currentDay;
-        currentSecondEEPROM = currentSecond;
-        currentMinuteEEPROM = currentMinute;
-        currentHourEEPROM = currentHour;
     }
 
     ////////////////////////////////////////////////////// SECOND
@@ -396,10 +555,10 @@ void NTPTimeUpdateOffline()
     }
     else
     {
-        seconddiffent = currentSecond - currentHourEEPROM;
+        seconddiffent = currentSecond - currentSecondEEPROM;
         currentSecond = currentSecond + seconddiffent;
     }
-    if (currentSecond > 59)
+    if (currentSecond == 60)
     {
         currentSecond = currentSecond - 59;
         currentMinute = currentMinute + 1;
@@ -409,13 +568,13 @@ void NTPTimeUpdateOffline()
 
     if (currentMinute < currentMinuteEEPROM)
     {
-        seconddiffent = currentMinuteEEPROM - currentMinute;
-        currentMinute = currentMinute + seconddiffent;
+        minutediffent = currentMinuteEEPROM - currentMinute;
+        currentMinute = currentMinute + minutediffent;
     }
     else
     {
-        seconddiffent = currentMinute - currentHourEEPROM;
-        currentMinute = currentMinute + seconddiffent;
+        minutediffent = currentMinute - currentMinuteEEPROM;
+        currentMinute = currentMinute + minutediffent;
     }
     if (currentMinute > 59)
     {
@@ -441,26 +600,40 @@ void NTPTimeUpdateOffline()
         currentDayofWeek = currentDayofWeek + 1;
     }
 
-    Serial.println("[INFO]: Sonrası:");
+    ////////////////////////////////////////////////////// DOW
+
+    if (currentDayofWeek < currentDayofWeekEEPROM)
+    {
+        DOWdiffent = currentDayofWeekEEPROM - currentDayofWeek;
+        currentDayofWeek = currentDayofWeek + DOWdiffent;
+    }
+    else
+    {
+        DOWdiffent = currentDayofWeek - currentDayofWeekEEPROM;
+        currentDayofWeek = currentDayofWeek + DOWdiffent;
+    }
+    if (currentDayofWeek > 7)
+    {
+        currentDayofWeek = currentDayofWeek - 7;
+    }
+
+    currentYearEEPROM = currentYear;
+    currentMonthEEPROM = currentMonth;
+    currentDayEEPROM = currentDay;
+    currentDayofWeekEEPROM = currentDayofWeek;
+    currentHourEEPROM = currentHour;
+    currentMinuteEEPROM = currentMinute;
+    currentSecondEEPROM = currentSecond;
+
+    Serial.println("[INFO]: SONRASI:");
+    Serial.print("currentDayofWeek: ");
+    Serial.println(currentDayofWeek);
     Serial.print("currentHour: ");
     Serial.println(currentHour);
     Serial.print("currentMinute: ");
     Serial.println(currentMinute);
     Serial.print("currentSecond: ");
     Serial.println(currentSecond);
-}
-
-void NTPTimeUpdate()
-{
-    timeClient.update();
-
-    currentDayofWeek = timeClient.getDay();
-    currentYear = EEPROMRead(60);
-    currentMonth = EEPROMRead(50);
-    currentDay = EEPROMRead(40);
-    currentSecond = timeClient.getSeconds();
-    currentMinute = timeClient.getMinutes();
-    currentHour = timeClient.getHours();
 }
 
 void RTCTimeUpdate()

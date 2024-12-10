@@ -22,3 +22,26 @@ TAMAMLANAN
 - Su çalışma suresınıde ayarla
 - manuel besleme porsiyonunu kontrol et 
 - firebase altyapı tamalndı
+
+
+
+HUGE APP CSV_____
+
+ ~ WiFi RSSI       : -40 dBm
+ ~ CPU Frequency   : 240 MHz
+ ~ Free RAM        : 99 KB
+ ~ Total Flash Size: 8192 KB
+ ~ Used Flash      : 1427 KB
+ ~ Free Flash      : 3072 KB (% 82.6) 
+
+
+DEFAULT OTA CSV_____
+
+
+ ~ WiFi RSSI       : -44 dBm
+ ~ CPU Frequency   : 240 MHz
+ ~ Free RAM        : 99 KB
+ ~ Total Flash Size: 8192 KB
+ ~ Used Flash      : 1427 KB
+ ~ Free Flash      : 1536 KB (% 82.6)  
+

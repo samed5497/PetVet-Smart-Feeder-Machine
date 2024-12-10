@@ -19,6 +19,11 @@ NTPClient timeClient(ntpUDP, ntpServer, utcOffsetInSeconds);
 unsigned long currentMillis, previousDayMillis, previousHourMillis, previousMinuteMillis, previousMillis = 0;
 
 bool LocalClockControl = false;
+
+int seconddiffent, minutediffent, hourdiffent, DOWdiffent;
+int currentDayofWeekEEPROM, currentYearEEPROM, currentMonthEEPROM, currentDayEEPROM, currentSecondEEPROM, currentMinuteEEPROM, currentHourEEPROM;
+int currentYear, currentMonth, currentDay, currentDayofWeek, currentHour, currentMinute, currentSecond;
+
 /////////////////////////////////////////////// EEPROM Değişkenleri
 
 const int EEPROM_SIZE = 4096;
@@ -31,7 +36,6 @@ const int MONTH_ADDRESS = 50;
 const int YEAR_ADDRESS = 60;
 const int DAY_OF_WEEK_ADDRESS = 70;
 
-int currentYear, currentMonth, currentDay, currentDayofWeek, currentHour, currentMinute, currentSecond;
 
 /////////////////////////////////////////////// Sunucu Değişkenleri
 
@@ -55,7 +59,7 @@ bool alarm_status, sikisma_alarm, noisy_alarm, max_water_alarm, min_water_alarm,
 String hata_kodu, latestVersion, firmwareURL = "";
 
 unsigned long buttonPressStartTime = 0;
-bool buttonHeld = false;
+bool buttonHeld, updating, ManuelUpdateControl = false;
 const unsigned long longPressDuration = 1000; // 1 saniye
 
 bool report = false;
@@ -65,7 +69,7 @@ bool report = false;
 int noisy_check = 0;
 int esikdeger = 1000;
 
-int Speaker_Volume = 100;
+int Speaker_Volume = 0;
 
 /////////////////////////////////////////////// RTC DEĞİŞKEN TANIMLAMALARI
 
@@ -125,6 +129,21 @@ int CPU_Temperature, last_boot_sure = 0;
 
 // ****************************************
 // TASKS ***********************************
+TaskHandle_t TaskTimeControlHandle = NULL;
+TaskHandle_t TaskFeederHandle = NULL;
+TaskHandle_t TaskSoundControlHandle = NULL;
+TaskHandle_t TaskServerConnectionHandle = NULL;
+TaskHandle_t TaskButtonControlHandle = NULL;
+TaskHandle_t TaskFeederFlowControlHandle = NULL;
+TaskHandle_t TaskAlarmControlHandle = NULL;
+TaskHandle_t TaskLightControlHandle = NULL;
+TaskHandle_t TaskWaterFeederHandle = NULL;
+TaskHandle_t TaskMicControlHandle = NULL;
+TaskHandle_t TaskWaterLevelControlHandle = NULL;
+TaskHandle_t TaskFoodLevelControlHandle = NULL;
+TaskHandle_t TaskSerialPortReportHandle = NULL;
+TaskHandle_t TaskBatteryControlHandle = NULL;
+TaskHandle_t TaskOTAHandle = NULL;
 
 void TaskOTA(void *pvParameters);
 void TaskServerConnection(void *pvParameters);

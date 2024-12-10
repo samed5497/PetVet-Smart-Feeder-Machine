@@ -17,9 +17,10 @@
 #include "addons/TokenHelper.h"
 #include "addons/RTDBHelper.h"
 
-//#include <Update.h>
-#include <HTTPUpdate.h>
-#include <WiFiClientSecure.h>
+#include <HTTPClient.h>
+#include <Update.h>
+#include <FS.h>
+#include <SPIFFS.h>
 
 #include <Adafruit_NeoPixel.h>
 

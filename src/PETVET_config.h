@@ -41,7 +41,7 @@ bool report_mode = true;
 #define WiFi_clock
 // #define WiFi_and_RTC_clock
 
-#if defined(RTC_clock)
+#if defined(WiFi_and_RTC_clock)
 #define currentSecond __TIME__[6] + __TIME__[7] // Şu anki saniye
 #define currentMinute __TIME__[3] + __TIME__[4] // Şu anki dakika
 #define currentHour __TIME__[0] + __TIME__[1]   // Şu anki saat

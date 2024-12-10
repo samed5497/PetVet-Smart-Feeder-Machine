@@ -2,7 +2,7 @@
 
 void WifiStarting()
 {
-    Serial.printf("\r\n[Wifi]: Bağlantı için bekleniyor..");
+    Serial.printf("[WiFi]: SSID: %s\n[WiFi]: Pass: %s\n[Wifi]: Bağlantı için bekleniyor..\n", ssid, pass);
 
     WiFi.mode(WIFI_STA); // STA MODUNU devre dışı bırak.
     WiFi.disconnect();
@@ -92,10 +92,12 @@ void FirebaseDeviceIDAssignment()
             json.set("/device/alarmcode", "-");
             json.set("/device/lastmanuelfeedtime", "-");
             json.set("/device/ipadress", WiFi.localIP().toString().c_str());
+            json.set("/device/currentversion", CURRENT_VERSION);
 
             // Settings bilgilerini ekle
             json.set("/settings/serialport", report_mode);
             json.set("/settings/soundvolume", Speaker_Volume);
+            json.set("/settings/manuelupdatecontrol", ManuelUpdateControl);
 
             // Manuel ayarlarını ekle
             json.set("/programs/manuel/feederportion", manuel_feeder_portion);
@@ -231,6 +233,7 @@ void FirebaseServerStarting()
     config.database_url = DATABASE_URL;
     auth.user.email = email;
     auth.user.password = email_pass;
+
     Firebase.reconnectWiFi(true);
     fbdo.setResponseSize(4096);
     config.token_status_callback = tokenStatusCallback;
@@ -358,15 +361,7 @@ void TimeStartingOffline()
 #undef WiFi_and_RTC_clock
     }
 #elif defined(WiFi_clock)
-    // [BUILDING] = Buraya eepromdan okudugu degeri timeclient sunucusunun varsayılan başlatma ayarı olarak ata.
-    // timeClient.update();
-    currentDayofWeek = EEPROMRead(DAY_OF_WEEK_ADDRESS);
-    currentYear = EEPROMRead(YEAR_ADDRESS);
-    currentMonth = EEPROMRead(MONTH_ADDRESS);
-    currentDay = EEPROMRead(DAY_ADDRESS);
-    currentSecond = EEPROMRead(SECOND_ADDRESS);
-    currentMinute = EEPROMRead(MINUTE_ADDRESS);
-    currentHour = EEPROMRead(HOUR_ADDRESS);
+    NTPTimeUpdateOffline(); //[BUILDING]
 #endif
 }
 
@@ -388,15 +383,7 @@ void TimeStartingOnline()
 
         Serial.println("RTC başlatıldı.");
 
-        timeClient.update();
-
-        currentDayofWeek = timeClient.getDay();
-        currentYear = EEPROMRead(60);
-        currentMonth = EEPROMRead(50);
-        currentDay = EEPROMRead(40);
-        currentSecond = timeClient.getSeconds();
-        currentMinute = timeClient.getMinutes();
-        currentHour = timeClient.getHours();
+        NTPTimeUpdate();
 
         //
         //
@@ -519,27 +506,47 @@ void setup()
     }
     first_time_update = true;
 
-    // Görevleri oluştur ve farklı çekirdeklerde çalıştır
-    xTaskCreate(TaskTimeControl, "Time Control Task", 4096, NULL, 7, NULL);
-    xTaskCreate(TaskFeeder, "Feeder Task", 2048, NULL, 6, NULL);
-    xTaskCreate(TaskSoundControl, "i2s_task", configMINIMAL_STACK_SIZE * 5, NULL, 5, NULL);
-    xTaskCreate(TaskServerConnection, "Server Control Task", 8096, NULL, 5, NULL);
-    xTaskCreate(TaskButtonControl, "Button Control Task", 2048, NULL, 4, NULL);
-    xTaskCreate(TaskFeederFlowControl, "Feeder Control Task", 2048, NULL, 4, NULL);
-    xTaskCreate(TaskAlarmControl, "Report Task", 1024, NULL, 3, NULL);
-    xTaskCreate(TaskLightControl, "Ligth Task", 4096, NULL, 2, NULL);
-    xTaskCreate(TaskWaterFeeder, "Water Feeder Task", 2048, NULL, 1, NULL);
-    xTaskCreate(TaskMicControl, "Noisy Control Task", 2048, NULL, 1, NULL);
-    xTaskCreate(TaskWaterLevelControl, "Water Control Task", 2048, NULL, 1, NULL);
-    xTaskCreate(TaskFoodLevelControl, "Food Control Task", 2048, NULL, 1, NULL);
-    xTaskCreate(TaskSerialPortReport, "Report Task", 4096, NULL, 1, NULL);
-    xTaskCreate(TaskBatteryControl, "Battery Control Task", 1024, NULL, 0, NULL);
-    xTaskCreate(TaskOTA, "ota Task", 16384, NULL, 8, NULL);
+    // Görevleri oluştur ve optimize edilmiş yığın boyutlarıyla farklı çekirdeklerde çalıştır
+    xTaskCreate(TaskTimeControl, "Time Control Task", 2048, NULL, 7, &TaskTimeControlHandle);               // Zaman kontrolü görevi (2 KB)
+    xTaskCreate(TaskFeeder, "Feeder Task", 1536, NULL, 6, &TaskFeederHandle);                               // Yemlik kontrolü görevi (1.5 KB)
+    xTaskCreate(TaskSoundControl, "i2s_task", 2048, NULL, 5, &TaskSoundControlHandle);                      // Ses kontrol görevi (2 KB)
+    xTaskCreate(TaskServerConnection, "Server Control Task", 8096, NULL, 5, &TaskServerConnectionHandle);   // Sunucu bağlantı görevi (4 KB)
+    xTaskCreate(TaskButtonControl, "Button Control Task", 1536, NULL, 4, &TaskButtonControlHandle);         // Buton kontrol görevi (1.5 KB)
+    xTaskCreate(TaskFeederFlowControl, "Feeder Control Task", 1536, NULL, 4, &TaskFeederFlowControlHandle); // Yemlik akış kontrol görevi (1.5 KB)
+    xTaskCreate(TaskAlarmControl, "Alarm Task", 1024, NULL, 3, &TaskAlarmControlHandle);                    // Alarm kontrol görevi (1 KB)
+    xTaskCreate(TaskLightControl, "Light Task", 2048, NULL, 2, &TaskLightControlHandle);                    // Işık kontrol görevi (2 KB)
+    xTaskCreate(TaskWaterFeeder, "Water Feeder Task", 1536, NULL, 1, &TaskWaterFeederHandle);               // Su besleyici kontrol görevi (1.5 KB)
+    xTaskCreate(TaskMicControl, "Mic Control Task", 1536, NULL, 1, &TaskMicControlHandle);                  // Mikrofon kontrol görevi (1.5 KB)
+    xTaskCreate(TaskWaterLevelControl, "Water Control Task", 1536, NULL, 1, &TaskWaterLevelControlHandle);  // Su seviyesi kontrol görevi (1.5 KB)
+    xTaskCreate(TaskFoodLevelControl, "Food Control Task", 1536, NULL, 1, &TaskFoodLevelControlHandle);     // Yem seviyesi kontrol görevi (1.5 KB)
+    xTaskCreate(TaskSerialPortReport, "Report Task", 2048, NULL, 1, &TaskSerialPortReportHandle);           // Seri port raporlama görevi (2 KB)
+    xTaskCreate(TaskBatteryControl, "Battery Control Task", 1024, NULL, 0, &TaskBatteryControlHandle);      // Pil kontrol görevi (1 KB)
+    xTaskCreate(TaskOTA, "OTA Task", 8192, NULL, 9, &TaskOTAHandle);                                        // OTA güncelleme görevi (8 KB)
 
     /*
-    1 KB = 256 kelime (stack size)
-    2 KB = 512 kelime (stack size)
-    4 KB = 1024 kelime (stack size)
-    8 KB = 2048 kelime (stack size)
-    */
+        // Görevleri oluştur ve farklı çekirdeklerde çalıştır
+        xTaskCreate(TaskTimeControl, "Time Control Task", 4096, NULL, 7, &TaskTimeControlHandle);
+        xTaskCreate(TaskFeeder, "Feeder Task", 2048, NULL, 6, &TaskFeederHandle);
+        xTaskCreate(TaskSoundControl, "i2s_task", configMINIMAL_STACK_SIZE * 5, NULL, 5, &TaskSoundControlHandle);
+        xTaskCreate(TaskServerConnection, "Server Control Task", 8096, NULL, 5, &TaskServerConnectionHandle);
+        xTaskCreate(TaskButtonControl, "Button Control Task", 2048, NULL, 4, &TaskButtonControlHandle);
+        xTaskCreate(TaskFeederFlowControl, "Feeder Control Task", 2048, NULL, 4, &TaskFeederFlowControlHandle);
+        xTaskCreate(TaskAlarmControl, "Report Task", 1024, NULL, 3, &TaskAlarmControlHandle);
+        xTaskCreate(TaskLightControl, "Light Task", 4096, NULL, 2, &TaskLightControlHandle);
+        xTaskCreate(TaskWaterFeeder, "Water Feeder Task", 2048, NULL, 1, &TaskWaterFeederHandle);
+        xTaskCreate(TaskMicControl, "Noisy Control Task", 2048, NULL, 1, &TaskMicControlHandle);
+        xTaskCreate(TaskWaterLevelControl, "Water Control Task", 2048, NULL, 1, &TaskWaterLevelControlHandle);
+        xTaskCreate(TaskFoodLevelControl, "Food Control Task", 2048, NULL, 1, &TaskFoodLevelControlHandle);
+        xTaskCreate(TaskSerialPortReport, "Report Task", 4096, NULL, 1, &TaskSerialPortReportHandle);
+        xTaskCreate(TaskBatteryControl, "Battery Control Task", 1024, NULL, 0, &TaskBatteryControlHandle);
+        xTaskCreate(TaskOTA, "OTA Task", 16384, NULL, 8, &TaskOTAHandle); // Daha büyük bir stack boyutu
+
+        vTaskSuspend(TaskOTAHandle);
+
+
+        1 KB = 256 kelime (stack size)
+        2 KB = 512 kelime (stack size)
+        4 KB = 1024 kelime (stack size)
+        8 KB = 2048 kelime (stack size)
+        */
 }
