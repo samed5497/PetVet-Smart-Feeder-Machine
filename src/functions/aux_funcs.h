@@ -1,4 +1,375 @@
-#include <core/variables.h>
+#include "web/Sunucu_mod_sayfalar.h"
+
+/////////////////////   NEOPIXEL FONKSİYONLARI    ////////////////////////////////////////////////////////////////////////////////////////////
+
+void colorWipe(uint32_t c, uint8_t wait)
+{
+    for (uint16_t i = 0; i < strip.numPixels(); i++)
+    {
+        strip.setPixelColor(i, c);
+        strip.show();
+        vTaskDelay(wait);
+    }
+}
+
+/////////////////////   DAHİLİ EEPROM FONKSİYONLARI    ////////////////////////////////////////////////////////////////////////////////////////////
+
+void EEPROMWrite(int address, int value) // EEPROM'a güvenli bir şekilde yazmak için fonksiyon
+{
+    EEPROM.writeInt(address, value);
+    EEPROM.commit();
+}
+
+int EEPROMRead(int address) // EEPROM'dan veri okumak için fonksiyon
+{
+    return EEPROM.readInt(address);
+}
+
+void writeTimetoEEPROM() // Zaman değerlerini EEPROM'a yazma işlemi
+{
+    if (currentDayofWeek != EEPROMRead(DAY_OF_WEEK_ADDRESS))
+    {
+        EEPROMWrite(DAY_OF_WEEK_ADDRESS, currentDayofWeek);
+        vTaskDelay(5);
+        EEPROMWrite(DAY_ADDRESS, currentDay);
+        vTaskDelay(5);
+        EEPROMWrite(MONTH_ADDRESS, currentMonth);
+        vTaskDelay(5);
+        EEPROMWrite(YEAR_ADDRESS, currentYear);
+        vTaskDelay(5);
+        Serial.printf("[Info]: Hafızadaki Gün Güncellendi: %d\n", currentDayofWeek);
+    }
+    if (currentHour != EEPROMRead(HOUR_ADDRESS))
+    {
+        EEPROMWrite(HOUR_ADDRESS, currentHour);
+        vTaskDelay(5);
+        Serial.printf("[Info]: Hafızadaki Saat Güncellendi: %d\n", currentHour);
+        Local_Time_Report = true;
+    }
+    if (currentMinute != EEPROMRead(MINUTE_ADDRESS))
+    {
+        EEPROMWrite(MINUTE_ADDRESS, currentMinute);
+        vTaskDelay(5);
+        Serial.printf("[Info]: Hafızadaki Dakika Güncellendi: %d\n", currentMinute);
+        if (currentMillis > 60000)
+        {
+            Serial.println(currentMillis);
+        }
+    }
+    if (currentSecond != EEPROMRead(SECOND_ADDRESS))
+    {
+        EEPROMWrite(SECOND_ADDRESS, currentSecond);
+        vTaskDelay(5);
+        Serial.printf("[Info]: Hafızadaki Saniye Güncellendi: %d\n", currentSecond);
+    }
+    Serial.println();
+}
+
+/////////////////////  HARİCİ EEPROM FONKSİYONLARI    ////////////////////////////////////////////////////////////////////////////////////////////
+/*
+void writeEEPROM_RTC(int address, int data)
+{
+    Wire.beginTransmission(EEPROM_ADDRESS); // 24C32'nin adresi
+    Wire.write((byte)(address >> 8));       // Yüksek adres byte
+    Wire.write((byte)(address & 0xFF));     // Düşük adres byte
+    Wire.write((byte)data);                 // Veri
+    Wire.endTransmission();
+    Serial.println("[Info]: Harici Eeproma Yazıldı.");
+}
+
+// EEPROM'dan veri okuma fonksiyonu
+int readEEPROM_RTC(int address)
+{
+    int data = 0;                           // Okunan veri
+    Wire.beginTransmission(EEPROM_ADDRESS); // 24C32'nin adresi
+    Wire.write((byte)(address >> 8));       // Yüksek adres byte
+    Wire.write((byte)(address & 0xFF));     // Düşük adres byte
+    Wire.endTransmission(false);
+
+    Wire.requestFrom(EEPROM_ADDRESS, 1); // 1 byte oku
+    if (Wire.available())
+    {
+        data = Wire.read(); // Okunan veriyi al
+    }
+    Serial.println("[Info]: Harici Eepromdan Okundu.");
+
+    return data;
+}
+
+void Epprom_Update_From_PC()
+{
+    Serial.println("[Info]: CİHAZIN İLK SAAT KURUKUMU YAPILDI.");
+
+    // Yıl, ay ve günü EEPROM'a yazma
+    writeEEPROM_RTC(60, 24); // Yılı iki haneli olarak kaydet (örneğin 2024 -> 24)
+    vTaskDelay(5);
+    writeEEPROM_RTC(50, 8); // Ayı kaydet
+    vTaskDelay(5);
+    writeEEPROM_RTC(40, 17); // Günü kaydet
+    vTaskDelay(5);
+    writeEEPROM_RTC(70, 6);
+    vTaskDelay(5);
+
+    // Saat, dakika ve saniyeyi EEPROM'a yazma
+    writeEEPROM_RTC(10, 0); // Saati kaydet
+    vTaskDelay(5);
+    writeEEPROM_RTC(20, 0); // Dakikayı kaydet
+    vTaskDelay(5);
+    writeEEPROM_RTC(30, 15); // Saniyeyi kaydet
+    vTaskDelay(5);
+}
+*/
+
+/////////////////////   İLK BAŞLANGIÇ HAFIZA GERİ YUKLEME VE KONTROL FONKSİYONLARI    ////////////////////////////////////////////////////////////////////////////////////////////
+
+boolean FirebaseUserControl()
+{
+    // Firebase yapılandırması
+    config.api_key = API_KEY;
+    config.database_url = DATABASE_URL;
+    auth.user.email = email;
+    auth.user.password = email_pass;
+
+    Firebase.reconnectWiFi(true);
+    fbdo.setResponseSize(4096);
+    config.token_status_callback = tokenStatusCallback;
+    config.max_token_generation_retry = 5;
+
+    // Firebase başlatma
+    Serial.println("[Info]: Sunucu ile bağlantı kuruluyor.");
+
+    Firebase.begin(&config, &auth); //[BUILDING] = Kimlik doğrulaması olmazsa da cihaz sıfırlansın.
+
+    Serial.println("");
+    Serial.println("[Info]: Kullanıcı bilgileri doğrulanıyor...");
+
+    // Token doğrulama için belirli sayıda deneme
+    int retryCount = 0;
+    while (auth.token.uid == "" && retryCount < 5)
+    {
+        Serial.print('.');
+        delay(250); // RTOS kullanılmadığı için vTaskDelay yerine delay kullanıyoruz
+        retryCount++;
+    }
+
+    // Doğrulama başarısız
+    if (auth.token.uid == "")
+    {
+        Serial.println("\n[ERROR]: Zaman aşımına uğradı. Kimlik doğrulama başarısız.");
+        return false;
+    }
+
+    // Doğrulama başarılı
+    uid = auth.token.uid.c_str();
+    signupOK = true;
+    Serial.print("[Info]: Doğrulanan Kimlik ID: ");
+    Serial.println(uid);
+
+    // Firebase bağlantı durumu kontrolü
+    if (Firebase.ready() && signupOK)
+    {
+        return true;
+    }
+    else
+    {
+        Serial.println("[ERROR]: Firebase bağlantısı başarısız.");
+        return false;
+    }
+}
+
+boolean WifiControlAndStart()
+{
+    Serial.println();
+    Serial.print("[Wifi]: Bağlantı için bekleniyor..");
+
+    WiFi.mode(WIFI_STA); // STA MODUNU devre dışı bırak.
+    WiFi.disconnect();
+    WiFi.setSleep(false);
+    WiFi.setAutoReconnect(true);
+    WiFi.hostname(hostname);
+    WiFi.setHostname(hostname); // ESP32 için hostname ayarı
+
+    /*
+        if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS))
+        {
+          Serial.println("STA Failed to configure");
+        }
+    */
+
+    WiFi.begin(ssid_STA, pass_STA);
+
+    int count = 0;
+    while (count < 60)
+    {
+        if (WiFi.status() == WL_CONNECTED)
+        {
+            Serial.println();
+            Serial.printf("[WiFi]: Bağlantı Başarılı!\r\n[WiFi]: Yerel IP-Addresi: %s\r\n", WiFi.localIP().toString().c_str());
+            Serial.printf("[WiFi]: MAC Addresi     : %s\r\n", WiFi.macAddress().c_str());
+            return (true);
+        }
+
+        Serial.print(".");
+        delay(250);
+        colorWipe(strip.Color(255, 255, 255), 0);
+        Serial.print(".");
+        delay(250);
+        colorWipe(strip.Color(0, 0, 0), 0);
+        count++;
+    }
+    Serial.println("");
+
+    Serial.println("[WiFi]: Zaman aşımına uğrandı.");
+    return false;
+}
+
+boolean Hafizadan_Yukle()
+{
+
+    Serial.println("[EEPROM Info]: Kayıtlı ağ okunuyor..");
+
+    if (EEPROMRead(WIFI_SSID_ADDRESS) != 0)
+    {
+        //////////////////////// SSID ADINI GERİ OKUMA
+
+        for (int i = WIFI_SSID_ADDRESS; i < WIFI_SSID_ADDRESS_LENGHT; ++i)
+        {
+            char c = EEPROMRead(i);
+            if (c == '\0')
+            {
+                break; // Null karakteri bulduğumuzda okumayı durdur
+            }
+            ssid_STA += c; // Karakteri String'e ekleyin
+        }
+        ssid_STA.trim();
+        Serial.print("  SSID Adı  (");
+        Serial.print(ssid_STA.length());
+        Serial.print(") : ");
+        Serial.println(ssid_STA);
+
+        //////////////////////// SSID ŞİFRESİNİ GERİ OKUMA
+
+        for (int i = WIFI_PASS_ADDRESS; i < WIFI_PASS_ADDRESS_LENGHT; ++i)
+        {
+            char c = EEPROMRead(i);
+            if (c == '\0')
+            {
+                break; // Null karakteri bulduğumuzda okumayı durdur
+            }
+            pass_STA += c; // Karakteri String'e ekleyin
+        }
+        pass_STA.trim();
+        Serial.print("  Şifre     (");
+        Serial.print(pass_STA.length());
+        Serial.print(") : ");
+        Serial.println(pass_STA);
+
+        //////////////////////// USER MAIL BİLGİSİNİ GERİ OKUMA
+
+        for (int i = WIFI_MAIL_ADDRESS; i < WIFI_MAIL_ADDRESS_LENGHT; ++i)
+        {
+            char c = EEPROMRead(i);
+            if (c == '\0')
+            {
+                break; // Null karakteri bulduğumuzda okumayı durdur
+            }
+            email += c; // Karakteri String'e ekleyin
+        }
+        email.trim();
+        Serial.print("  Email     (");
+        Serial.print(email.length());
+        Serial.print(") : ");
+        Serial.println(email);
+
+        //////////////////////// USER MAIL ŞİFRE BİLGİSİNİ GERİ OKUMA
+
+        for (int i = WIFI_MAIL_PASS_ADDRESS; i < WIFI_MAIL_PASS_ADDRESS_LENGHT; ++i)
+        {
+            char c = EEPROMRead(i);
+            if (c == '\0')
+            {
+                break; // Null karakteri bulduğumuzda okumayı durdur
+            }
+            email_pass += c; // Karakteri String'e ekleyin
+        }
+        email_pass.trim();
+        Serial.print("  email_pass(");
+        Serial.print(email_pass.length());
+        Serial.print(") : ");
+        Serial.println(email_pass);
+
+        return true;
+    }
+    else
+    {
+        Serial.println("[EEPROM Info]: Kayıtlı ağ bulunamadı!");
+        return false;
+    }
+}
+
+void StartBluetoothSetup()
+{
+}
+
+void StartWebServer()
+{
+
+    ws.onEvent(onWebSocketEvent);
+    server.addHandler(&ws);
+
+    if (SetupMode)
+    {
+        Kurulum_mod_sayfalar();
+    }
+
+    else
+    {
+        Sunucu_mod_sayfalar();
+    }
+
+    server.begin();
+    Serial.println("[Yerel Sunucu]: AP baglantisi baslatiliyor.");
+    Serial.print("[Yerel Sunucu]: Varsayilan SSID:  \"");
+
+    Serial.print(ssid_AP);
+    Serial.println("\"");
+}
+
+void SetupModeFunction()
+{
+    colorWipe(strip.Color(255, 0, 0), 0);
+    WiFi.mode(WIFI_STA); // STA MODUNU devre dışı bırak.
+    WiFi.disconnect();
+    delay(100);
+
+    if (BluetoothMode) // [BUILDING] = Bluetooth ile cihaz kurulum modu açılacak.
+    {                  // Bluetooh sayfası başlatılacak.
+        StartBluetoothSetup();
+    }
+    else
+    {
+
+        int n = WiFi.scanNetworks(); // wifi ağlarını tara
+        delay(100);
+        Serial.println("");
+        for (int i = 0; i < n; ++i)
+        {
+            ssidList += "<option value=\"";
+            ssidList += WiFi.SSID(i);
+            ssidList += "\">";
+            ssidList += WiFi.SSID(i);
+            ssidList += "</option>";
+        }
+        delay(100);
+
+        WiFi.mode(WIFI_AP);
+        WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
+        WiFi.softAP(ssid_AP);
+
+        dnsServer.start(53, "*", apIP);
+        StartWebServer();
+    }
+}
 
 /////////////////////   OTO GÜNCELLEME FONKSİYONLARI    ////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -145,6 +516,7 @@ void DELETEALLTASKSFORUPDATE()
 void performOTAUpdate(String url) // OTA güncelleme işlemi
 {
     Serial.println("[Info]: Firmware indiriliyor: " + url);
+    Serial.println();
 
     HTTPClient http;
     http.begin(url);
@@ -159,10 +531,6 @@ void performOTAUpdate(String url) // OTA güncelleme işlemi
         {
             size_t written = 0;
             int lastPercentage = 0; // Son yazdırılan yüzde değeri
-
-            // Diğer görevleri durdur
-            updating = true;
-            STOPALLTASKSFORUPDATE();
 
             while (written < contentLength)
             {
@@ -224,21 +592,41 @@ void checkForOTAUpdate() // OTA güncelleme kontrol fonksiyonu
             if (Firebase.RTDB.getString(&fbdo, "UPDATES/PetVet/url"))
             {
                 String firmwareURL = fbdo.stringData();
+                // Diğer görevleri durdur
+                updating = true;
+                STOPALLTASKSFORUPDATE();
                 performOTAUpdate(firmwareURL);
             }
             else
             {
-                Serial.println("[ERROR]: Güncelleme URL'si alınamadı: " + fbdo.errorReason());
+                Serial.print("[ERROR]: Güncelleme URL'si alınamadı: ");
+                Serial.println("HTTP Kod: " + String(fbdo.httpCode()));
+                Serial.println("Hata Sebebi: " + fbdo.errorReason());
             }
         }
         else
         {
             Serial.println("[Info]: Cihaz güncel durumda.");
+            Serial.println();
+
+            VeriYolu = uid + "/PetVet/DEVICE" + String(DEVICE_ID) + "/settings/manuelupdatecontrol";
+            if (Firebase.RTDB.setBool(&fbdo, VeriYolu, false))
+            {
+                ManuelUpdateControl = false; // Manuel güncelleme tamamlandıktan sonra sıfırla
+            }
+            else
+            {
+                Serial.print("[ERROR]: ManuelUpdateControl güncellenemedi. Nedeni: ");
+                Serial.println("HTTP Kod: " + String(fbdo.httpCode()));
+                Serial.println("Hata Sebebi: " + fbdo.errorReason());
+            }
         }
     }
     else
     {
-        Serial.println("[ERROR]: Versiyon bilgisi alınamadı: " + fbdo.errorReason());
+        Serial.print("[ERROR]: Versiyon bilgisi alınamadı: ");
+        Serial.println("HTTP Kod: " + String(fbdo.httpCode()));
+        Serial.println("Hata Sebebi: " + fbdo.errorReason());
     }
 }
 
@@ -342,18 +730,6 @@ void TurningControl()
     }
 }
 
-/////////////////////   NEOPIXEL FONKSİYONLARI    ////////////////////////////////////////////////////////////////////////////////////////////
-
-void colorWipe(uint32_t c, uint8_t wait)
-{
-    for (uint16_t i = 0; i < strip.numPixels(); i++)
-    {
-        strip.setPixelColor(i, c);
-        strip.show();
-        vTaskDelay(wait);
-    }
-}
-
 /////////////////////   BUZZER FONKSİYONLARI    ////////////////////////////////////////////////////////////////////////////////////////////
 
 void FeederSound()
@@ -381,114 +757,6 @@ void WaterFeederSound()
     vTaskDelay(100);        // 250 milisaniye bekle
     noTone(buzzer_pin);     // Sesi kapat
 }
-
-/////////////////////   DAHİLİ EEPROM FONKSİYONLARI    ////////////////////////////////////////////////////////////////////////////////////////////
-
-void EEPROMWrite(int address, int value) // EEPROM'a güvenli bir şekilde yazmak için fonksiyon
-{
-    EEPROM.writeInt(address, value);
-    EEPROM.commit();
-}
-
-int EEPROMRead(int address) // EEPROM'dan veri okumak için fonksiyon
-{
-    return EEPROM.readInt(address);
-}
-
-void writeTimetoEEPROM() // Zaman değerlerini EEPROM'a yazma işlemi
-{
-    if (currentDayofWeek != EEPROMRead(DAY_OF_WEEK_ADDRESS))
-    {
-        EEPROMWrite(DAY_OF_WEEK_ADDRESS, currentDayofWeek);
-        vTaskDelay(5);
-        EEPROMWrite(DAY_ADDRESS, currentDay);
-        vTaskDelay(5);
-        EEPROMWrite(MONTH_ADDRESS, currentMonth);
-        vTaskDelay(5);
-        EEPROMWrite(YEAR_ADDRESS, currentYear);
-        vTaskDelay(5);
-        Serial.printf("[Info]: Hafızadaki Gün Güncellendi: %d\n", currentDayofWeek);
-    }
-    if (currentHour != EEPROMRead(HOUR_ADDRESS))
-    {
-        EEPROMWrite(HOUR_ADDRESS, currentHour);
-        vTaskDelay(5);
-        Serial.printf("[Info]: Hafızadaki Saat Güncellendi: %d\n", currentHour);
-        Local_Time_Report = true;
-    }
-    if (currentMinute != EEPROMRead(MINUTE_ADDRESS))
-    {
-        EEPROMWrite(MINUTE_ADDRESS, currentMinute);
-        vTaskDelay(5);
-        Serial.printf("[Info]: Hafızadaki Dakika Güncellendi: %d\n", currentMinute);
-        if (currentMillis > 60000)
-        {
-            Serial.println(currentMillis);
-        }
-    }
-    if (currentSecond != EEPROMRead(SECOND_ADDRESS))
-    {
-        EEPROMWrite(SECOND_ADDRESS, currentSecond);
-        vTaskDelay(5);
-        Serial.printf("[Info]: Hafızadaki Saniye Güncellendi: %d\n", currentSecond);
-    }
-    Serial.println();
-}
-
-/////////////////////  HARİCİ EEPROM FONKSİYONLARI    ////////////////////////////////////////////////////////////////////////////////////////////
-/*
-void writeEEPROM_RTC(int address, int data)
-{
-    Wire.beginTransmission(EEPROM_ADDRESS); // 24C32'nin adresi
-    Wire.write((byte)(address >> 8));       // Yüksek adres byte
-    Wire.write((byte)(address & 0xFF));     // Düşük adres byte
-    Wire.write((byte)data);                 // Veri
-    Wire.endTransmission();
-    Serial.println("[Info]: Harici Eeproma Yazıldı.");
-}
-
-// EEPROM'dan veri okuma fonksiyonu
-int readEEPROM_RTC(int address)
-{
-    int data = 0;                           // Okunan veri
-    Wire.beginTransmission(EEPROM_ADDRESS); // 24C32'nin adresi
-    Wire.write((byte)(address >> 8));       // Yüksek adres byte
-    Wire.write((byte)(address & 0xFF));     // Düşük adres byte
-    Wire.endTransmission(false);
-
-    Wire.requestFrom(EEPROM_ADDRESS, 1); // 1 byte oku
-    if (Wire.available())
-    {
-        data = Wire.read(); // Okunan veriyi al
-    }
-    Serial.println("[Info]: Harici Eepromdan Okundu.");
-
-    return data;
-}
-
-void Epprom_Update_From_PC()
-{
-    Serial.println("[Info]: CİHAZIN İLK SAAT KURUKUMU YAPILDI.");
-
-    // Yıl, ay ve günü EEPROM'a yazma
-    writeEEPROM_RTC(60, 24); // Yılı iki haneli olarak kaydet (örneğin 2024 -> 24)
-    vTaskDelay(5);
-    writeEEPROM_RTC(50, 8); // Ayı kaydet
-    vTaskDelay(5);
-    writeEEPROM_RTC(40, 17); // Günü kaydet
-    vTaskDelay(5);
-    writeEEPROM_RTC(70, 6);
-    vTaskDelay(5);
-
-    // Saat, dakika ve saniyeyi EEPROM'a yazma
-    writeEEPROM_RTC(10, 0); // Saati kaydet
-    vTaskDelay(5);
-    writeEEPROM_RTC(20, 0); // Dakikayı kaydet
-    vTaskDelay(5);
-    writeEEPROM_RTC(30, 15); // Saniyeyi kaydet
-    vTaskDelay(5);
-}
-*/
 
 /////////////////////   ZAMAN YÖNETİM FONKSİYONLARI    ////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -722,7 +990,8 @@ void ReadyToSendDatas1()
         else
         {
             Serial.print("[ERROR]: Connection FAILED. ");
-            Serial.println("REASON: " + fbdo.errorReason());
+            Serial.println("HTTP Kod: " + String(fbdo.httpCode()));
+            Serial.println("Hata Sebebi: " + fbdo.errorReason());
         }
         vTaskDelay(5);
     }
@@ -739,7 +1008,8 @@ void ReadyToSendDatas1()
         else
         {
             Serial.print("[ERROR]: Connection FAILED. ");
-            Serial.println("REASON: " + fbdo.errorReason());
+            Serial.println("HTTP Kod: " + String(fbdo.httpCode()));
+            Serial.println("Hata Sebebi: " + fbdo.errorReason());
         }
         vTaskDelay(1);
     }
@@ -764,8 +1034,9 @@ void ReadyToSendDatas2()
         else
         {
             // Hata durumunda mesaj yazdır
-            Serial.println("[ERROR]: Connection FAILED.");
-            Serial.println("REASON: " + fbdo.errorReason());
+            Serial.print("[ERROR]: Connection FAILED. ");
+            Serial.println("HTTP Kod: " + String(fbdo.httpCode()));
+            Serial.println("Hata Sebebi: " + fbdo.errorReason());
         }
 
         vTaskDelay(1); // Sistem dengesini korumak için kısa bir gecikme
@@ -782,7 +1053,8 @@ void ReadyToSendDatas2()
         else
         {
             Serial.print("[ERROR]: Connection FAILED. ");
-            Serial.println("REASON: " + fbdo.errorReason());
+            Serial.println("HTTP Kod: " + String(fbdo.httpCode()));
+            Serial.println("Hata Sebebi: " + fbdo.errorReason());
         }
         vTaskDelay(1);
     }
@@ -799,8 +1071,8 @@ void ReadyToSendDatas2()
            else
            {
                Serial.print("[ERROR]: Connection FAILED. ");
-               Serial.println("REASON: " + fbdo.errorReason());
-           }
+  Serial.println("HTTP Kod: " + String(fbdo.httpCode()));
+            Serial.println("Hata Sebebi: " + fbdo.errorReason());           }
            vTaskDelay (1);
        }
  */
@@ -814,7 +1086,8 @@ void ReadyToSendDatas2()
         else
         {
             Serial.print("[ERROR]: Connection FAILED. ");
-            Serial.println("REASON: " + fbdo.errorReason());
+            Serial.println("HTTP Kod: " + String(fbdo.httpCode()));
+            Serial.println("Hata Sebebi: " + fbdo.errorReason());
         }
         vTaskDelay(1);
     }
@@ -830,7 +1103,8 @@ void ReadyToSendDatas2()
         else
         {
             Serial.print("[ERROR]: Connection FAILED. ");
-            Serial.println("REASON: " + fbdo.errorReason());
+            Serial.println("HTTP Kod: " + String(fbdo.httpCode()));
+            Serial.println("Hata Sebebi: " + fbdo.errorReason());
         }
         vTaskDelay(1);
     }
@@ -846,7 +1120,8 @@ void ReadyToSendDatas2()
         else
         {
             Serial.print("[ERROR]: Connection FAILED. ");
-            Serial.println("REASON: " + fbdo.errorReason());
+            Serial.println("HTTP Kod: " + String(fbdo.httpCode()));
+            Serial.println("Hata Sebebi: " + fbdo.errorReason());
         }
         vTaskDelay(1);
     }

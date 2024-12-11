@@ -6,7 +6,6 @@ Bu kısımda geliştiricler için bilgilendirme bölümleri vardır.
 [BUILDING] = Geliştirilecek görevi temsil eder. 
 
 
-
 #### HATA KODLARI 
 
 - 100 = Wifi bağlantı hatası

@@ -1,40 +1,5 @@
 #include <functions/aux_funcs.h>
 
-void WifiStarting()
-{
-    Serial.printf("[WiFi]: SSID: %s\n[WiFi]: Pass: %s\n[Wifi]: Bağlantı için bekleniyor..\n", ssid, pass);
-
-    WiFi.mode(WIFI_STA); // STA MODUNU devre dışı bırak.
-    WiFi.disconnect();
-    WiFi.setSleep(false);
-    WiFi.setAutoReconnect(true);
-    WiFi.hostname(hostname);
-    WiFi.setHostname(hostname); // ESP32 için hostname ayarı
-
-    WiFi.begin(ssid, pass);
-    int count = 0;
-    while (count < 30)
-    {
-        if (WiFi.status() == WL_CONNECTED)
-        {
-            Serial.println();
-            Serial.printf("[WiFi]: Bağlantı Başarılı!\r\n[WiFi]: Yerel IP-Addresi: %s\r\n", WiFi.localIP().toString().c_str());
-            Serial.printf("[WiFi]: MAC Addresi     : %s\r\n", WiFi.macAddress().c_str());
-
-            break;
-        }
-
-        Serial.print(".");
-        delay(250);
-        colorWipe(strip.Color(255, 255, 255), 0);
-        Serial.print(".");
-        delay(250);
-        colorWipe(strip.Color(0, 0, 0), 0);
-        count++;
-    }
-    Serial.println();
-}
-
 void FirebaseDeviceIDAssignment()
 {
     // Başlangıç değişkenleri
@@ -54,7 +19,7 @@ void FirebaseDeviceIDAssignment()
                 // MAC adresi eşleşiyor mu?
                 if (fbdo.stringData() == currentMAC)
                 {
-                    Serial.println("[Info]: Mevcut cihaz bulundu.");
+                    Serial.print("[Info]: Mevcut cihaz bulundu. ");
                     isMatched = true;
                     break; // Döngüden çık
                 }
@@ -98,6 +63,7 @@ void FirebaseDeviceIDAssignment()
             json.set("/settings/serialport", report_mode);
             json.set("/settings/soundvolume", Speaker_Volume);
             json.set("/settings/manuelupdatecontrol", ManuelUpdateControl);
+            json.set("/settings/resetcount", ResetCount);
 
             // Manuel ayarlarını ekle
             json.set("/programs/manuel/feederportion", manuel_feeder_portion);
@@ -113,8 +79,8 @@ void FirebaseDeviceIDAssignment()
                 json.set(programPath + "/number", i);
                 json.set(programPath + "/hour", 0);
                 json.set(programPath + "/minute", 0);
-                json.set(programPath + "/portion", 0);
-                json.set(programPath + "/status", 0);
+                json.set(programPath + "/portion", 2);
+                json.set(programPath + "/status", false);
             }
 
             // Firebase'e gönder
@@ -126,14 +92,15 @@ void FirebaseDeviceIDAssignment()
             else
             {
                 Serial.print("[ERROR]: Firebase JSON gönderimi başarısız. ");
-                Serial.println(fbdo.errorReason());
+                Serial.println("HTTP Kod: " + String(fbdo.httpCode()));
+                Serial.println("Hata Sebebi: " + fbdo.errorReason());
                 return;
             }
         }
 
         // Cihaz ID'sini belirle
         DEVICE_ID = DEVICE_ID;
-        Serial.printf("[Info]: Cihaz ID: DEVICE%d olarak ayarlandı.\n", DEVICE_ID);
+        Serial.printf("Cihaz ID: %d\n", DEVICE_ID);
     }
     else
     {
@@ -157,8 +124,9 @@ void FirebaseDeviceIDAssignment()
             }
             else
             {
-                Serial.print("[ERROR]: Mail güncellenemedi. Nedeni: ");
-                Serial.println(fbdo.errorReason());
+                Serial.print("[ERROR]: Mail güncellenemedi. ");
+                Serial.println("HTTP Kod: " + String(fbdo.httpCode()));
+                Serial.println("Hata Sebebi: " + fbdo.errorReason());
             }
         }
     }
@@ -172,14 +140,16 @@ void FirebaseDeviceIDAssignment()
             }
             else
             {
-                Serial.print("[ERROR]: Mail oluşturulamadı. Nedeni: ");
-                Serial.println(fbdo.errorReason());
+                Serial.print("[ERROR]: Mail oluşturulamadı. ");
+                Serial.println("HTTP Kod: " + String(fbdo.httpCode()));
+                Serial.println("Hata Sebebi: " + fbdo.errorReason());
             }
         }
         else
         {
-            Serial.print("[ERROR]: Mail kontrolü başarısız. Nedeni: ");
-            Serial.println(fbdo.errorReason());
+            Serial.print("[ERROR]: Mail kontrolü başarısız. ");
+            Serial.println("HTTP Kod: " + String(fbdo.httpCode()));
+            Serial.println("Hata Sebebi: " + fbdo.errorReason());
         }
     }
 
@@ -200,8 +170,9 @@ void FirebaseDeviceIDAssignment()
             }
             else
             {
-                Serial.print("[ERROR]: Mail şifresi güncellenemedi. Nedeni: ");
-                Serial.println(fbdo.errorReason());
+                Serial.print("[ERROR]: Mail şifresi güncellenemedi. ");
+                Serial.println("HTTP Kod: " + String(fbdo.httpCode()));
+                Serial.println("Hata Sebebi: " + fbdo.errorReason());
             }
         }
     }
@@ -215,56 +186,62 @@ void FirebaseDeviceIDAssignment()
             }
             else
             {
-                Serial.print("[ERROR]: Mail şifresi oluşturulamadı. Nedeni: ");
-                Serial.println(fbdo.errorReason());
+                Serial.print("[ERROR]: Mail şifresi oluşturulamadı. ");
+                Serial.println("HTTP Kod: " + String(fbdo.httpCode()));
+                Serial.println("Hata Sebebi: " + fbdo.errorReason());
             }
         }
         else
         {
-            Serial.print("[ERROR]: Mail şifre kontrolü başarısız. Nedeni: ");
-            Serial.println(fbdo.errorReason());
+            Serial.print("[ERROR]: Mail şifre kontrolü başarısız. ");
+            Serial.println("HTTP Kod: " + String(fbdo.httpCode()));
+            Serial.println("Hata Sebebi: " + fbdo.errorReason());
         }
     }
-}
 
-void FirebaseServerStarting()
-{
-    config.api_key = API_KEY;
-    config.database_url = DATABASE_URL;
-    auth.user.email = email;
-    auth.user.password = email_pass;
-
-    Firebase.reconnectWiFi(true);
-    fbdo.setResponseSize(4096);
-    config.token_status_callback = tokenStatusCallback;
-    config.max_token_generation_retry = 5;
-    Firebase.begin(&config, &auth);
-
-    Serial.println("");
-    Serial.println("[Info]: Kullanıcı bilgileri doğrulanıyor..");
-
-    while ((auth.token.uid) == "" && id_count < 75)
+    //////////// Cihaz Versiyon kontrolü ve yazma ////////////
+    VeriYolu = uid + "/PetVet/DEVICE" + String(DEVICE_ID) + "/device/currentversion";
+    if (Firebase.RTDB.getString(&fbdo, VeriYolu))
     {
-        Serial.print('.');
-        vTaskDelay(250);
-        id_count++;
-    }
-    if ((auth.token.uid) == "")
-    {
-        Serial.println("[***ERROR!] - Zaman aşımına uğrandı.");
-        Serial.println();
-        vTaskDelay(500);
+        String mevcutDeger = fbdo.stringData();
+        if (mevcutDeger == String(CURRENT_VERSION))
+        {
+            // Serial.println("[Info]: Mail şifresi zaten aynı, değişiklik yapılmadı.");
+        }
+        else
+        {
+            if (Firebase.RTDB.setString(&fbdo, VeriYolu, CURRENT_VERSION))
+            {
+                Serial.println("[Info]: Cihaz Versiyonu güncellendi.");
+            }
+            else
+            {
+                Serial.print("[ERROR]:  Cihaz Versiyonu güncellenemedi. ");
+                Serial.println("HTTP Kod: " + String(fbdo.httpCode()));
+                Serial.println("Hata Sebebi: " + fbdo.errorReason());
+            }
+        }
     }
     else
     {
-        uid = auth.token.uid.c_str();
-        signupOK = true;
-        Serial.print("[Info]: Doğrulanan Kimlik ID: ");
-        Serial.println(uid);
-
-        if (Firebase.ready() && signupOK)
+        if (fbdo.httpCode() == -103)
         {
-            FirebaseDeviceIDAssignment();
+            if (Firebase.RTDB.setString(&fbdo, VeriYolu, email_pass))
+            {
+                Serial.println("[Info]: Mail şifresi oluşturuldu.");
+            }
+            else
+            {
+                Serial.print("[ERROR]: Mail şifresi oluşturulamadı. ");
+                Serial.println("HTTP Kod: " + String(fbdo.httpCode()));
+                Serial.println("Hata Sebebi: " + fbdo.errorReason());
+            }
+        }
+        else
+        {
+            Serial.print("[ERROR]: Mail şifre kontrolü başarısız. ");
+            Serial.println("HTTP Kod: " + String(fbdo.httpCode()));
+            Serial.println("Hata Sebebi: " + fbdo.errorReason());
         }
     }
 }
@@ -472,6 +449,50 @@ void StartingSerialandApps()
     digitalWrite(m2_in1_pin, LOW);
     digitalWrite(m2_in2_pin, HIGH);
     digitalWrite(I2C_gnd, HIGH);
+
+    if (digitalRead(button_pin) == LOW) // EĞER Açılışta besleme butonuna basılı tutuluyorsa resetleme yap.
+    {
+        delay(1000);
+        if (digitalRead(button_pin) == LOW)
+        {
+            EEPROM.begin(EEPROM_SIZE); // EEPROM'i başlat
+            delay(100);
+            digitalWrite(buzzer_pin, HIGH);
+
+            for (int i = 0; i < EEPROM_SIZE; ++i)
+            {
+                EEPROM.write(i, 0);
+                EEPROM.commit();
+            }
+            Serial.println("");
+            Serial.println("[Bilgi]: Ayarlar Sıfırlandı. Yeniden yapılandırmak için cihazı yeniden başlatın. ");
+            Serial.println("");
+            delay(1000);
+            ESP.restart();
+        }
+    }
+}
+
+void StartMemoryAndWifiControl()
+{
+    EEPROM.begin(EEPROM_SIZE); // EEPROM'i başlat
+
+    if (Hafizadan_Yukle()) // Hafzada kayıtlı bilgi varsa buraya gir.
+    {
+        if (WifiControlAndStart()) // Hafızadaki kayıtlı bilgilerle bağlantı kurmaya çalış.
+        {
+            if (FirebaseUserControl()) // Hafızadaki kayıtlı bilgilerle bağlantı kurmaya çalış.
+            {
+                SetupMode = false;
+                // StartWebServer();         // Bağlantı kurulursa istenieln web sunucuyu başlat.
+                WiFi.softAPdisconnect(true); // AP Modunu devre dışı bırak.
+                return;
+            }
+        }
+    }
+
+    SetupMode = true; // Katıtlı veri yoksa kurulum modunu aktifleştir ve AP modunda devam et.
+    SetupModeFunction();
 }
 
 // ****************************************
@@ -479,74 +500,75 @@ void StartingSerialandApps()
 
 void setup()
 {
-    pins();                    // Pin Tanımlamaları
-    StartingSerialandApps();   // İlk çalıştırılan uygulama ve seri port mesajları
-    EEPROM.begin(EEPROM_SIZE); // EEPROM'i başlat
-    WifiStarting();            // Wifi Başlatma Uygulamalrı
-    AmplificatorStarting();    // MAX98 Entegresini devreye al
+    pins();                  // Pin Tanımlamaları
+    StartingSerialandApps(); // İlk çalıştırılan uygulama ve seri port mesajları
+    StartMemoryAndWifiControl();
 
     /////////////////////////////////////////////// Başlangıç Uygulamarı Sonrası İlk Fonksiyonlar
-
-    if (WiFi.status() != WL_CONNECTED) // WİFİ BAĞLANTISI OLMADIYSA BU FONKSYONLARI YAP.
+    if (!SetupMode)
     {
-        Serial.println();
-        Serial.println("[ALARM]: WiFi connection failed, using EEPROM time");
-        Serial.println();
+        AmplificatorStarting(); // MAX98 Entegresini devreye al
 
-        wifi_alarm = true;
-        TimeStartingOffline();
+        if (WiFi.status() != WL_CONNECTED) // WİFİ BAĞLANTISI OLMADIYSA BU FONKSYONLARI YAP.
+        {
+            Serial.println();
+            Serial.println("[ALARM]: WiFi connection failed, using EEPROM time");
+            Serial.println();
+
+            wifi_alarm = true;
+            TimeStartingOffline();
+        }
+        else // WİFİ BAĞLANTISI BAŞARILIYSA BU FONKSYONLARI YAP.
+        {
+            wifi_alarm = false;
+            FirebaseDeviceIDAssignment();
+            timeClient.begin(); // NTP istemcisini başlatma
+            TimeStartingOnline();
+        }
+        first_time_update = true;
+
+        // Görevleri oluştur ve optimize edilmiş yığın boyutlarıyla farklı çekirdeklerde çalıştır
+        xTaskCreate(TaskTimeControl, "Time Control Task", 2048, NULL, 7, &TaskTimeControlHandle);               // Zaman kontrolü görevi (2 KB)
+        xTaskCreate(TaskFeeder, "Feeder Task", 1536, NULL, 6, &TaskFeederHandle);                               // Yemlik kontrolü görevi (1.5 KB)
+        xTaskCreate(TaskSoundControl, "i2s_task", 2048, NULL, 5, &TaskSoundControlHandle);                      // Ses kontrol görevi (2 KB)
+        xTaskCreate(TaskServerConnection, "Server Control Task", 8096, NULL, 5, &TaskServerConnectionHandle);   // Sunucu bağlantı görevi (4 KB)
+        xTaskCreate(TaskButtonControl, "Button Control Task", 1536, NULL, 4, &TaskButtonControlHandle);         // Buton kontrol görevi (1.5 KB)
+        xTaskCreate(TaskFeederFlowControl, "Feeder Control Task", 1536, NULL, 4, &TaskFeederFlowControlHandle); // Yemlik akış kontrol görevi (1.5 KB)
+        xTaskCreate(TaskAlarmControl, "Alarm Task", 1024, NULL, 3, &TaskAlarmControlHandle);                    // Alarm kontrol görevi (1 KB)
+        xTaskCreate(TaskLightControl, "Light Task", 2048, NULL, 2, &TaskLightControlHandle);                    // Işık kontrol görevi (2 KB)
+        xTaskCreate(TaskWaterFeeder, "Water Feeder Task", 1536, NULL, 1, &TaskWaterFeederHandle);               // Su besleyici kontrol görevi (1.5 KB)
+        xTaskCreate(TaskMicControl, "Mic Control Task", 1536, NULL, 1, &TaskMicControlHandle);                  // Mikrofon kontrol görevi (1.5 KB)
+        xTaskCreate(TaskWaterLevelControl, "Water Control Task", 1536, NULL, 1, &TaskWaterLevelControlHandle);  // Su seviyesi kontrol görevi (1.5 KB)
+        xTaskCreate(TaskFoodLevelControl, "Food Control Task", 1536, NULL, 1, &TaskFoodLevelControlHandle);     // Yem seviyesi kontrol görevi (1.5 KB)
+        xTaskCreate(TaskSerialPortReport, "Report Task", 2048, NULL, 1, &TaskSerialPortReportHandle);           // Seri port raporlama görevi (2 KB)
+        xTaskCreate(TaskBatteryControl, "Battery Control Task", 1024, NULL, 0, &TaskBatteryControlHandle);      // Pil kontrol görevi (1 KB)
+        xTaskCreate(TaskOTA, "OTA Task", 8192, NULL, 9, &TaskOTAHandle);                                        // OTA güncelleme görevi (8 KB)
+
+        /*
+            // Görevleri oluştur ve farklı çekirdeklerde çalıştır
+            xTaskCreate(TaskTimeControl, "Time Control Task", 4096, NULL, 7, &TaskTimeControlHandle);
+            xTaskCreate(TaskFeeder, "Feeder Task", 2048, NULL, 6, &TaskFeederHandle);
+            xTaskCreate(TaskSoundControl, "i2s_task", configMINIMAL_STACK_SIZE * 5, NULL, 5, &TaskSoundControlHandle);
+            xTaskCreate(TaskServerConnection, "Server Control Task", 8096, NULL, 5, &TaskServerConnectionHandle);
+            xTaskCreate(TaskButtonControl, "Button Control Task", 2048, NULL, 4, &TaskButtonControlHandle);
+            xTaskCreate(TaskFeederFlowControl, "Feeder Control Task", 2048, NULL, 4, &TaskFeederFlowControlHandle);
+            xTaskCreate(TaskAlarmControl, "Report Task", 1024, NULL, 3, &TaskAlarmControlHandle);
+            xTaskCreate(TaskLightControl, "Light Task", 4096, NULL, 2, &TaskLightControlHandle);
+            xTaskCreate(TaskWaterFeeder, "Water Feeder Task", 2048, NULL, 1, &TaskWaterFeederHandle);
+            xTaskCreate(TaskMicControl, "Noisy Control Task", 2048, NULL, 1, &TaskMicControlHandle);
+            xTaskCreate(TaskWaterLevelControl, "Water Control Task", 2048, NULL, 1, &TaskWaterLevelControlHandle);
+            xTaskCreate(TaskFoodLevelControl, "Food Control Task", 2048, NULL, 1, &TaskFoodLevelControlHandle);
+            xTaskCreate(TaskSerialPortReport, "Report Task", 4096, NULL, 1, &TaskSerialPortReportHandle);
+            xTaskCreate(TaskBatteryControl, "Battery Control Task", 1024, NULL, 0, &TaskBatteryControlHandle);
+            xTaskCreate(TaskOTA, "OTA Task", 16384, NULL, 8, &TaskOTAHandle); // Daha büyük bir stack boyutu
+
+            vTaskSuspend(TaskOTAHandle);
+
+
+            1 KB = 256 kelime (stack size)
+            2 KB = 512 kelime (stack size)
+            4 KB = 1024 kelime (stack size)
+            8 KB = 2048 kelime (stack size)
+            */
     }
-    else // WİFİ BAĞLANTISI BAŞARILIYSA BU FONKSYONLARI YAP.
-    {
-        wifi_alarm = false;
-
-        timeClient.begin(); // NTP istemcisini başlatma
-        TimeStartingOnline();
-        FirebaseServerStarting(); // Firebase Başlatma Uygulamalrı
-    }
-    first_time_update = true;
-
-    // Görevleri oluştur ve optimize edilmiş yığın boyutlarıyla farklı çekirdeklerde çalıştır
-    xTaskCreate(TaskTimeControl, "Time Control Task", 2048, NULL, 7, &TaskTimeControlHandle);               // Zaman kontrolü görevi (2 KB)
-    xTaskCreate(TaskFeeder, "Feeder Task", 1536, NULL, 6, &TaskFeederHandle);                               // Yemlik kontrolü görevi (1.5 KB)
-    xTaskCreate(TaskSoundControl, "i2s_task", 2048, NULL, 5, &TaskSoundControlHandle);                      // Ses kontrol görevi (2 KB)
-    xTaskCreate(TaskServerConnection, "Server Control Task", 8096, NULL, 5, &TaskServerConnectionHandle);   // Sunucu bağlantı görevi (4 KB)
-    xTaskCreate(TaskButtonControl, "Button Control Task", 1536, NULL, 4, &TaskButtonControlHandle);         // Buton kontrol görevi (1.5 KB)
-    xTaskCreate(TaskFeederFlowControl, "Feeder Control Task", 1536, NULL, 4, &TaskFeederFlowControlHandle); // Yemlik akış kontrol görevi (1.5 KB)
-    xTaskCreate(TaskAlarmControl, "Alarm Task", 1024, NULL, 3, &TaskAlarmControlHandle);                    // Alarm kontrol görevi (1 KB)
-    xTaskCreate(TaskLightControl, "Light Task", 2048, NULL, 2, &TaskLightControlHandle);                    // Işık kontrol görevi (2 KB)
-    xTaskCreate(TaskWaterFeeder, "Water Feeder Task", 1536, NULL, 1, &TaskWaterFeederHandle);               // Su besleyici kontrol görevi (1.5 KB)
-    xTaskCreate(TaskMicControl, "Mic Control Task", 1536, NULL, 1, &TaskMicControlHandle);                  // Mikrofon kontrol görevi (1.5 KB)
-    xTaskCreate(TaskWaterLevelControl, "Water Control Task", 1536, NULL, 1, &TaskWaterLevelControlHandle);  // Su seviyesi kontrol görevi (1.5 KB)
-    xTaskCreate(TaskFoodLevelControl, "Food Control Task", 1536, NULL, 1, &TaskFoodLevelControlHandle);     // Yem seviyesi kontrol görevi (1.5 KB)
-    xTaskCreate(TaskSerialPortReport, "Report Task", 2048, NULL, 1, &TaskSerialPortReportHandle);           // Seri port raporlama görevi (2 KB)
-    xTaskCreate(TaskBatteryControl, "Battery Control Task", 1024, NULL, 0, &TaskBatteryControlHandle);      // Pil kontrol görevi (1 KB)
-    xTaskCreate(TaskOTA, "OTA Task", 8192, NULL, 9, &TaskOTAHandle);                                        // OTA güncelleme görevi (8 KB)
-
-    /*
-        // Görevleri oluştur ve farklı çekirdeklerde çalıştır
-        xTaskCreate(TaskTimeControl, "Time Control Task", 4096, NULL, 7, &TaskTimeControlHandle);
-        xTaskCreate(TaskFeeder, "Feeder Task", 2048, NULL, 6, &TaskFeederHandle);
-        xTaskCreate(TaskSoundControl, "i2s_task", configMINIMAL_STACK_SIZE * 5, NULL, 5, &TaskSoundControlHandle);
-        xTaskCreate(TaskServerConnection, "Server Control Task", 8096, NULL, 5, &TaskServerConnectionHandle);
-        xTaskCreate(TaskButtonControl, "Button Control Task", 2048, NULL, 4, &TaskButtonControlHandle);
-        xTaskCreate(TaskFeederFlowControl, "Feeder Control Task", 2048, NULL, 4, &TaskFeederFlowControlHandle);
-        xTaskCreate(TaskAlarmControl, "Report Task", 1024, NULL, 3, &TaskAlarmControlHandle);
-        xTaskCreate(TaskLightControl, "Light Task", 4096, NULL, 2, &TaskLightControlHandle);
-        xTaskCreate(TaskWaterFeeder, "Water Feeder Task", 2048, NULL, 1, &TaskWaterFeederHandle);
-        xTaskCreate(TaskMicControl, "Noisy Control Task", 2048, NULL, 1, &TaskMicControlHandle);
-        xTaskCreate(TaskWaterLevelControl, "Water Control Task", 2048, NULL, 1, &TaskWaterLevelControlHandle);
-        xTaskCreate(TaskFoodLevelControl, "Food Control Task", 2048, NULL, 1, &TaskFoodLevelControlHandle);
-        xTaskCreate(TaskSerialPortReport, "Report Task", 4096, NULL, 1, &TaskSerialPortReportHandle);
-        xTaskCreate(TaskBatteryControl, "Battery Control Task", 1024, NULL, 0, &TaskBatteryControlHandle);
-        xTaskCreate(TaskOTA, "OTA Task", 16384, NULL, 8, &TaskOTAHandle); // Daha büyük bir stack boyutu
-
-        vTaskSuspend(TaskOTAHandle);
-
-
-        1 KB = 256 kelime (stack size)
-        2 KB = 512 kelime (stack size)
-        4 KB = 1024 kelime (stack size)
-        8 KB = 2048 kelime (stack size)
-        */
 }

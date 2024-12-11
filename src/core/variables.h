@@ -3,11 +3,37 @@
 // ****************************************
 // VARIABLES ***********************************
 
+/////////////////////////////////////////////// Core Variables
+
+const char *hostname = UYGULAMA.c_str();
+const char *ssid_AP = UYGULAMA.c_str();
+const char *pass_AP = "";
+
+String ssid_STA = "";
+String pass_STA = "";
+String email = "";
+String email_pass = "";
+
+/////////////////////////////////////////////// WEBSERVER Variables
+
+const IPAddress apIP(192, 168, 4, 1);
+DNSServer dnsServer;
+AsyncWebServer server(80);
+AsyncWebSocket ws("/ws");
+
+String AdminUser = "admin";
+String AdminPass = "admin1234";
+
+/////////////////////////////////////////////// I2S Variables
+
 Audio audio;
+
+bool SoundFirstOpen = false;
+
 /////////////////////////////////////////////// Wifi değişkenleri
 
-#define WIFI_SSID ssid
-#define WIFI_PASSWORD pass
+#define WIFI_SSID ssid_STA
+#define WIFI_PASSWORD pass_STA
 
 /////////////////////////////////////////////// NTP Sunucu ayarları
 
@@ -36,11 +62,16 @@ const int MONTH_ADDRESS = 50;
 const int YEAR_ADDRESS = 60;
 const int DAY_OF_WEEK_ADDRESS = 70;
 
+const int WIFI_SSID_ADDRESS = 1000;
+const int WIFI_SSID_ADDRESS_LENGHT = 1032;
+const int WIFI_PASS_ADDRESS = 1100;
+const int WIFI_PASS_ADDRESS_LENGHT = 1132;
+const int WIFI_MAIL_ADDRESS = 1200;
+const int WIFI_MAIL_ADDRESS_LENGHT = 1232;
+const int WIFI_MAIL_PASS_ADDRESS = 1300;
+const int WIFI_MAIL_PASS_ADDRESS_LENGHT = 1332;
 
 /////////////////////////////////////////////// Sunucu Değişkenleri
-
-#define USER_EMAIL email
-#define USER_PASSWORD email_pass
 
 String uid, VeriYolu;
 int id_count = 0;
@@ -56,13 +87,15 @@ FirebaseConfig config;
 int motor_lap_count, wtr_lvl, noisy = 0;
 bool switch_durum, feed_mode, EEPROM_Time_Update, first_time_update = false;
 bool alarm_status, sikisma_alarm, noisy_alarm, max_water_alarm, min_water_alarm, wifi_alarm = false;
-String hata_kodu, latestVersion, firmwareURL = "";
+String hata_kodu, latestVersion, firmwareURL, ssidList = "";
 
 unsigned long buttonPressStartTime = 0;
-bool buttonHeld, updating, ManuelUpdateControl = false;
+bool buttonHeld, updating, ManuelUpdateControl, ResetCount = false;
 const unsigned long longPressDuration = 1000; // 1 saniye
 
 bool report = false;
+
+boolean SetupMode;
 
 /////////////////////////////////////////////// Mikrofon değişkenleri
 
@@ -91,7 +124,7 @@ int feed_time_minute[PROGRAM_SAYISI];
 bool status[PROGRAM_SAYISI];
 
 int runing_program, last_feed_minute = 0; // vakti gelen görevin id si.
-int manuel_feeder_portion = 5;
+int manuel_feeder_portion = 3;
 
 bool device_server_report, manuel_feeder_status, manuel_water_status, Local_Time_Report, water_timer = false;
 bool manuel_feeder_status_report, manuel_water_status_report = true;

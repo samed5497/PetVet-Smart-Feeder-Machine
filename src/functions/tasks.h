@@ -14,24 +14,13 @@ void TaskOTA(void *parameter) // Task: OTA güncelleme kontrolü
 
     while (true)
     {
-        if (millis() > 60000)
+        if (millis() > 60000 && !SetupMode)
         {
             if (ManuelUpdateControl) // Manuel güncelleme tetiklenirse
             {
                 if (!updating && WiFi.status() == WL_CONNECTED)
                 {
                     checkForOTAUpdate();
-                    VeriYolu = uid + "/PetVet/DEVICE" + String(DEVICE_ID) + "/settings/manuelupdatecontrol";
-
-                    if (Firebase.RTDB.setBool(&fbdo, VeriYolu, false))
-                    {
-                        ManuelUpdateControl = false; // Manuel güncelleme tamamlandıktan sonra sıfırla
-                    }
-                    else
-                    {
-                        Serial.print("[ERROR]: ManuelUpdateControl güncellenemedi. Nedeni: ");
-                        Serial.println(fbdo.errorReason());
-                    }
                 }
             }
             else // Manuel tetikleme yoksa, günlük kontrol yap
@@ -56,7 +45,7 @@ void TaskServerConnection(void *pvParameters)
 {
     while (true)
     {
-        if (!updating && WiFi.status() == WL_CONNECTED) // Güncelleme sırasında raporlama yapma
+        if (!updating && !SetupMode && WiFi.status() == WL_CONNECTED) // Güncelleme sırasında raporlama yapma
         {
             if (Firebase.ready() && signupOK)
             {
@@ -153,7 +142,7 @@ void TaskServerConnection(void *pvParameters)
                             int newVolume = settings[volumekey].as<int>();
                             if (Speaker_Volume != newVolume) // Eğer gelen veri mevcut veri ile farklı ise
                             {
-                                ManuelUpdateControl = newVolume;
+                                Speaker_Volume = newVolume;
                                 audio.setVolume(map(Speaker_Volume, 0, 100, 0, 21)); // 0-100 aralığındaki değeri 0-21 aralığına çevir ve ses seviyesini ayarla
                             }
                         }
@@ -164,12 +153,45 @@ void TaskServerConnection(void *pvParameters)
                         {
                             ManuelUpdateControl = settings[manuelupdatecontrolkey].as<bool>();
                         }
+
+                        // resetcount verilerini çek ve ilgili değişkene ata
+                        String resetcountkey = "resetcount";
+                        if (settings.containsKey(resetcountkey))
+                        {
+                            ResetCount = settings[resetcountkey].as<bool>();
+                            if (ResetCount)
+                            {
+                                VeriYolu = uid + "/PetVet/DEVICE" + String(DEVICE_ID) + "/settings/resetcount";
+                                if (Firebase.RTDB.setBool(&fbdo, VeriYolu, false))
+                                {
+                                    for (int i = 0; i < EEPROM_SIZE; ++i)
+                                    {
+                                        EEPROM.write(i, 0);
+                                    }
+                                    EEPROM.commit();
+                                    Serial.println("");
+                                    Serial.println("[Info]: Ayarlar Sıfırlandı. Cihaz 3 Saniye içinde yeniden başlatılacak.");
+                                    Serial.println("");
+                                    colorWipe(strip.Color(255, 255, 255), 0);
+
+                                    delay(2000);
+                                    ESP.restart();
+                                }
+                                else
+                                {
+                                    Serial.print("[ERROR]: ResetCount güncellenemedi. Nedeni: ");
+                                    Serial.println("HTTP Kod: " + String(fbdo.httpCode()));
+                                    Serial.println("Hata Sebebi: " + fbdo.errorReason());
+                                }
+                            }
+                        }
                     }
                 }
                 else
                 {
                     Serial.print("[ERROR]: Connection FAILED. ");
-                    Serial.println("REASON: " + fbdo.errorReason());
+                    Serial.println("HTTP Kod: " + String(fbdo.httpCode()));
+                    Serial.println("Hata Sebebi: " + fbdo.errorReason());
                 }
 
                 ReadyToSendDatas2(); // Gönderilecek datalar
@@ -223,7 +245,7 @@ void TaskTimeControl(void *pvParameters)
 {
     while (true)
     {
-        if (!updating) // Güncelleme sırasında raporlama yapma
+        if (!updating && !SetupMode) // Güncelleme sırasında raporlama yapma
         {
             currentMillis = millis();
 
@@ -279,7 +301,7 @@ void TaskMicControl(void *pvParameters)
     // [BUILDING] = bu kısım tamamen kontrol edilip havlama tespiti yapılacak.
     while (true)
     {
-        if (!updating) // Güncelleme sırasında raporlama yapma
+        if (!updating && !SetupMode) // Güncelleme sırasında raporlama yapma
         {
             noisy = analogRead(mic_pin);
 
@@ -319,7 +341,7 @@ void TaskSerialPortReport(void *pvParameters)
 {
     while (true)
     {
-        if (!updating) // Güncelleme sırasında raporlama yapma
+        if (!updating && !SetupMode) // Güncelleme sırasında raporlama yapma
         {
             if (report_mode)
             {
@@ -350,14 +372,10 @@ void TaskSerialPortReport(void *pvParameters)
 
                 ////////////////////////////////////// SYSTEM
                 int32_t rssi = WiFi.RSSI();
-                Serial.printf(" ~ WiFi RSSI       : %d dBm\n", rssi);
-
-                // CPU Frekansı
-                uint32_t cpuFreq = ESP.getCpuFreqMHz();
-                Serial.printf(" ~ CPU Frequency   : %d MHz\n", cpuFreq);
+                Serial.printf(" ~ WiFi            : %S / RSSI: %d dBm\n", ssid_STA, rssi);
 
                 // RAM Bilgisi
-                uint32_t freeHeap = ESP.getFreeHeap(); // ESP8266'daki mevcut RAM bilgisi
+                uint32_t freeHeap = ESP.getFreeHeap(); // İşlemcideki'daki mevcut RAM bilgisi
                 Serial.printf(" ~ Free RAM        : %d KB\n", freeHeap / 1024);
 
                 // ROM Bilgisi (Flash Bellek)
@@ -394,7 +412,7 @@ void TaskFeeder(void *pvParameters)
 {
     while (true)
     {
-        if (!updating) // Güncelleme sırasında raporlama yapma
+        if (!updating && !SetupMode) // Güncelleme sırasında raporlama yapma
         {
             if (feed_mode)
             {
@@ -471,7 +489,7 @@ void TaskFeederFlowControl(void *pvParameters)
 {
     while (true)
     {
-        if (!updating) // Güncelleme sırasında raporlama yapma
+        if (!updating && !SetupMode) // Güncelleme sırasında raporlama yapma
         {
             if (feed_mode == true)
             {
@@ -501,19 +519,25 @@ void TaskSoundControl(void *pvParameters)
 {
     while (true)
     {
-        if (!updating && WiFi.status() == WL_CONNECTED) // Güncelleme sırasında raporlama yapma
+        if (!updating && !SetupMode && WiFi.status() == WL_CONNECTED) // Güncelleme sırasında raporlama yapma
         {
+
             if (Speaker_Volume > 0)
             {
-                if (wifi_alarm == false)
+                if (!SoundFirstOpen)
                 {
-                    // [BUILDING] Buraya uzaktan ses gönderdiğimizde çalması için sunucu bağlantıları yapılacak.
                     audio.connecttohost("http://mp3.ffh.de/radioffh/hqlivestream.mp3"); //  128k mp3
+                    SoundFirstOpen = true;
+                    Serial.println("[Info]: Music server connected!");
                 }
+                // [BUILDING] Buraya uzaktan ses gönderdiğimizde çalması için sunucu bağlantıları yapılacak.
+
                 audio.loop(); // Ses döngüsü işlemi, eğer ses seviyesi 0'dan büyükse çalıştır
             }
             else
             {
+                SoundFirstOpen = false;
+
                 audio.stopSong(); // Ses seviyesini 0 olduğu için sesi durdur
             }
         }
@@ -526,7 +550,7 @@ void TaskBatteryControl(void *pvParameters)
 {
     while (true)
     {
-        if (!updating) // Güncelleme sırasında raporlama yapma
+        if (!updating && !SetupMode) // Güncelleme sırasında raporlama yapma
         {
             float totalVoltage = 0.0;
             int ornekleme_sayisi = 100;
@@ -570,7 +594,7 @@ void TaskAlarmControl(void *pvParameters)
 {
     while (true)
     {
-        if (!updating) // Güncelleme sırasında raporlama yapma
+        if (!updating && !SetupMode) // Güncelleme sırasında raporlama yapma
         {
             if (!sikisma_alarm && !max_water_alarm)
             {
@@ -655,7 +679,7 @@ void TaskButtonControl(void *pvParameters)
 {
     while (true)
     {
-        if (!updating) // Güncelleme sırasında raporlama yapma
+        if (!updating && !SetupMode) // Güncelleme sırasında raporlama yapma
         {
             if (digitalRead(button_pin) == LOW) // Butona basıldığında
             {
@@ -718,7 +742,7 @@ void TaskLightControl(void *pvParameters)
 {
     while (true)
     {
-        if (!updating) // Güncelleme sırasında raporlama yapma
+        if (!updating && !SetupMode) // Güncelleme sırasında raporlama yapma
         {
             if (feed_mode)
             {
@@ -771,7 +795,7 @@ void TaskWaterFeeder(void *pvParameters)
 {
     while (true)
     {
-        if (!updating) // Güncelleme sırasında raporlama yapma
+        if (!updating && !SetupMode) // Güncelleme sırasında raporlama yapma
         {
             if (millis() - last_water_time > (water_work_time * 60000))
             {
@@ -827,7 +851,7 @@ void TaskWaterLevelControl(void *pvParameters)
 
     while (true)
     {
-        if (!updating) // Güncelleme sırasında raporlama yapma
+        if (!updating && !SetupMode) // Güncelleme sırasında raporlama yapma
         {
             int sum_of_samples = 0;
 
@@ -869,7 +893,7 @@ void TaskFoodLevelControl(void *pvParameters)
 {
     while (true)
     {
-        if (!updating) // Güncelleme sırasında raporlama yapma
+        if (!updating && !SetupMode) // Güncelleme sırasında raporlama yapma
         {
             //[BUILDING] = bu kısım için sensor eklenip denencek.
         }

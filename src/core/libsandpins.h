@@ -9,6 +9,10 @@
 #include <esp_system.h>
 #include <esp_spi_flash.h>
 
+#include <DNSServer.h>
+#include <ESPAsyncWebServer.h>
+#include <AsyncWebSocket.h>
+
 #include <ArduinoJson.h>
 #include "uRTCLib.h"
 #include <NTPClient.h>
@@ -25,13 +29,6 @@
 #include <Adafruit_NeoPixel.h>
 
 #include <PETVET_config.h>
-
-// ****************************************
-// Core Variables *************************
-
-String UYGULAMA = "PetVet ";
-#define CURRENT_VERSION VERSION
-const char *hostname = "PetVet";
 
 // ****************************************
 // PINS ***********************************
@@ -79,6 +76,8 @@ void pins()
     pinMode(button2_pin, INPUT);
     pinMode(weter_level_pin, INPUT);
     pinMode(switch_pin, INPUT);
+
+
 }
 
 // ****************************************

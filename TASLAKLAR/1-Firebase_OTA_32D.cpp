@@ -27,9 +27,6 @@ String email_pass = "SamCo1234";
 // Cihazın mevcut versiyonu
 #define CURRENT_VERSION "0.5.0"
 
-
-
-
 void checkForOTAUpdate()
 {
     Serial.println("\n--- OTA Güncelleme Kontrolü Başlıyor ---");
@@ -53,7 +50,9 @@ void checkForOTAUpdate()
             }
             else
             {
-                Serial.println("[ERROR]: Güncelleme URL'si alınamadı: " + fbdo.errorReason());
+                Serial.print("[ERROR]: Güncelleme URL'si alınamadı: ");
+                Serial.println("HTTP Kod: " + String(fbdo.httpCode()));
+                Serial.println("Hata Sebebi: " + fbdo.errorReason());
             }
         }
         else
@@ -63,7 +62,9 @@ void checkForOTAUpdate()
     }
     else
     {
-        Serial.println("[ERROR]: Versiyon bilgisi alınamadı: " + fbdo.errorReason());
+        Serial.print("[ERROR]: Versiyon bilgisi alınamadı: ");
+        Serial.println("HTTP Kod: " + String(fbdo.httpCode()));
+        Serial.println("Hata Sebebi: " + fbdo.errorReason());
     }
 }
 
@@ -145,9 +146,6 @@ void performOTAUpdate(String url)
     http.end();
 }
 
-
-
-
 void setup()
 {
     Serial.begin(115200);
@@ -185,7 +183,7 @@ void setup()
 
 void loop()
 {
-    delay(6000); 
+    delay(6000);
     checkForOTAUpdate();
 }
 #endif
