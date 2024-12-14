@@ -234,7 +234,7 @@ boolean Hafizadan_Yukle()
 
         for (int i = WIFI_SSID_ADDRESS; i < WIFI_SSID_ADDRESS_LENGHT; ++i)
         {
-            char c = EEPROMRead(i);
+            char c = EEPROM.read(i);
             if (c == '\0')
             {
                 break; // Null karakteri bulduğumuzda okumayı durdur
@@ -242,16 +242,13 @@ boolean Hafizadan_Yukle()
             ssid_STA += c; // Karakteri String'e ekleyin
         }
         ssid_STA.trim();
-        Serial.print("  SSID Adı  (");
-        Serial.print(ssid_STA.length());
-        Serial.print(") : ");
-        Serial.println(ssid_STA);
+        Serial.printf("  SSID Adı (%d) : %s\n", ssid_STA.length(), ssid_STA.c_str());
 
         //////////////////////// SSID ŞİFRESİNİ GERİ OKUMA
 
         for (int i = WIFI_PASS_ADDRESS; i < WIFI_PASS_ADDRESS_LENGHT; ++i)
         {
-            char c = EEPROMRead(i);
+            char c = EEPROM.read(i);
             if (c == '\0')
             {
                 break; // Null karakteri bulduğumuzda okumayı durdur
@@ -259,16 +256,13 @@ boolean Hafizadan_Yukle()
             pass_STA += c; // Karakteri String'e ekleyin
         }
         pass_STA.trim();
-        Serial.print("  Şifre     (");
-        Serial.print(pass_STA.length());
-        Serial.print(") : ");
-        Serial.println(pass_STA);
+        Serial.printf("  Şifre (%d) : %s\n", pass_STA.length(), pass_STA.c_str());
 
         //////////////////////// USER MAIL BİLGİSİNİ GERİ OKUMA
 
         for (int i = WIFI_MAIL_ADDRESS; i < WIFI_MAIL_ADDRESS_LENGHT; ++i)
         {
-            char c = EEPROMRead(i);
+            char c = EEPROM.read(i);
             if (c == '\0')
             {
                 break; // Null karakteri bulduğumuzda okumayı durdur
@@ -276,16 +270,13 @@ boolean Hafizadan_Yukle()
             email += c; // Karakteri String'e ekleyin
         }
         email.trim();
-        Serial.print("  Email     (");
-        Serial.print(email.length());
-        Serial.print(") : ");
-        Serial.println(email);
+        Serial.printf("  Email (%d) : %s\n", email.length(), email.c_str());
 
         //////////////////////// USER MAIL ŞİFRE BİLGİSİNİ GERİ OKUMA
 
         for (int i = WIFI_MAIL_PASS_ADDRESS; i < WIFI_MAIL_PASS_ADDRESS_LENGHT; ++i)
         {
-            char c = EEPROMRead(i);
+            char c = EEPROM.read(i);
             if (c == '\0')
             {
                 break; // Null karakteri bulduğumuzda okumayı durdur
@@ -293,10 +284,7 @@ boolean Hafizadan_Yukle()
             email_pass += c; // Karakteri String'e ekleyin
         }
         email_pass.trim();
-        Serial.print("  email_pass(");
-        Serial.print(email_pass.length());
-        Serial.print(") : ");
-        Serial.println(email_pass);
+        Serial.printf("  Şifre (%d) : %s\n", email_pass.length(), email_pass.c_str());
 
         return true;
     }

@@ -32,14 +32,11 @@ void Kurulum_mod_sayfalar()
       String email = request->getParam("email", true)->value();
       String email_pass = request->getParam("email_pass", true)->value();
 
-      Serial.print("SSID : ");
-      Serial.println(ssid_STA);
-      Serial.print("Şifre: ");
-      Serial.println(pass_STA);
-      Serial.print("Email: ");
-      Serial.println(email);
-      Serial.print("Şifre: ");
-      Serial.println(email_pass);
+      Serial.printf("  SSID Adı (%d) : %s\n", ssid_STA.length(), ssid_STA.c_str());
+      Serial.printf("  Şifre (%d) : %s\n", pass_STA.length(), pass_STA.c_str());
+      Serial.printf("  Email (%d) : %s\n", email.length(), email.c_str());
+      Serial.printf("  Şifre (%d) : %s\n", email_pass.length(), email_pass.c_str());
+
       Serial.println("[EEPROM Info]: Bilgiler kaydediliyor...");
 
       // EEPROM'a yaz

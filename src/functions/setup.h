@@ -457,13 +457,15 @@ void StartingSerialandApps()
         {
             EEPROM.begin(EEPROM_SIZE); // EEPROM'i başlat
             delay(100);
+            Serial.println("[Bilgi]: Ayarlar Sıfırlanıyor..");
+
             digitalWrite(buzzer_pin, HIGH);
 
             for (int i = 0; i < EEPROM_SIZE; ++i)
             {
                 EEPROM.write(i, 0);
-                EEPROM.commit();
             }
+            EEPROM.commit();
             Serial.println("");
             Serial.println("[Bilgi]: Ayarlar Sıfırlandı. Yeniden yapılandırmak için cihazı yeniden başlatın. ");
             Serial.println("");

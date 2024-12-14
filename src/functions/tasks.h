@@ -823,7 +823,7 @@ void TaskWaterFeeder(void *pvParameters)
             if (manuel_water_status)
             {
                 Serial.println("[Info]: Manuel Su veriliyor.");
-                WaterFeederSound();
+                //WaterFeederSound();
                 unsigned long manuel_water_time = millis();
 
                 while (millis() - manuel_water_time < (manuel_water_portion * 1000))
