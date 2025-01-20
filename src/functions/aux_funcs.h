@@ -892,6 +892,8 @@ void NTPTimeUpdateOffline()
     Serial.println(currentSecond);
 }
 
+#if defined(WiFi_and_RTC_clock)
+
 void RTCTimeUpdate()
 {
     rtc.refresh();
@@ -910,6 +912,7 @@ void RTCTimeUpdate()
     }
     Serial.flush();
 }
+#endif
 
 /////////////////////   removeErrorCode FONKSİYONLARI    ////////////////////////////////////////////////////////////////////////////////////////////
 

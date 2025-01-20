@@ -656,7 +656,7 @@ void TaskAlarmControl(void *pvParameters)
                         hata_kodu += " 120 -";
                         Serial.println("[ALARM]: Max Water Alarm!");
                         Serial.println();
-                        tone(buzzer_pin, 2000); // 2000 Hz frekansta ses üret
+                        // tone(buzzer_pin, 2000); // 2000 Hz frekansta ses üret
                     }
                 }
             }
@@ -866,23 +866,24 @@ void TaskWaterLevelControl(void *pvParameters)
             wtr_lvl = sum_of_samples / sample_count;
             Water_Level = map(wtr_lvl, min_water_value, max_water_value, 0, 100);
             Water_Level = constrain(Water_Level, 0, 100);
-
-            // Alarm durumlarını kontrol et
-            if (wtr_lvl > (max_water_value + 200))
-            {
-                max_water_alarm = true;
-            }
-            else if (wtr_lvl < 700 && wtr_lvl > 300)
-            {
-                min_water_alarm = true;
-            }
-            else
-            {
-                min_water_alarm = false;
-                max_water_alarm = false;
-                removeErrorCode(" 125 -");
-                removeErrorCode(" 120 -");
-            }
+            /*
+                        // Alarm durumlarını kontrol et
+                        if (wtr_lvl > (max_water_value + 200))
+                        {
+                            max_water_alarm = true;
+                        }
+                        else if (wtr_lvl < 700 && wtr_lvl > 300)
+                        {
+                            min_water_alarm = true;
+                        }
+                        else
+                        {
+                            min_water_alarm = false;
+                            max_water_alarm = false;
+                            removeErrorCode(" 125 -");
+                            removeErrorCode(" 120 -");
+                        }
+            */
         }
 
         vTaskDelay(2500 / portTICK_PERIOD_MS); // 1 Hz döngü

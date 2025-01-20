@@ -2,31 +2,43 @@
 // ****************************************
 // LIBS ***********************************
 
-#include "WiFi.h"
-#include "Audio.h"
-#include <WiFiUdp.h>
-#include <EEPROM.h>
-#include <esp_system.h>
-#include <esp_spi_flash.h>
+#include <Arduino.h>
 
-#include <DNSServer.h>
-#include <ESPAsyncWebServer.h>
-#include <AsyncWebSocket.h>
-
-#include <ArduinoJson.h>
-#include "uRTCLib.h"
-#include <NTPClient.h>
-
-#include <Firebase_ESP_Client.h>
-#include "addons/TokenHelper.h"
-#include "addons/RTDBHelper.h"
-
+#if defined(ESP32)
+#include <WiFi.h>
 #include <HTTPClient.h>
 #include <Update.h>
 #include <FS.h>
 #include <SPIFFS.h>
+#include <esp_system.h>
+#include <esp_spi_flash.h>
+
+#include <ESPAsyncWebServer.h>
+#include <AsyncWebSocket.h>
+
+#elif defined(ESP8266)
+#include <ESP8266WiFi.h>
+#include <ESP8266HTTPClient.h>
+#include <Updater.h>
+
+#include <ESPAsyncTCP.h>
+#include "ESPAsyncWebServer.h"
+#endif
+
+#include <EEPROM.h>
+#include <WiFiUdp.h>
+#include <DNSServer.h>
+
+#include <NTPClient.h>
+
+#include <ArduinoJson.h>
+#include <Firebase_ESP_Client.h>
+#include "addons/TokenHelper.h"
+#include "addons/RTDBHelper.h"
 
 #include <Adafruit_NeoPixel.h>
+#include "uRTCLib.h"
+#include "Audio.h"
 
 #include <PETVET_config.h>
 
@@ -76,8 +88,6 @@ void pins()
     pinMode(button2_pin, INPUT);
     pinMode(weter_level_pin, INPUT);
     pinMode(switch_pin, INPUT);
-
-
 }
 
 // ****************************************
