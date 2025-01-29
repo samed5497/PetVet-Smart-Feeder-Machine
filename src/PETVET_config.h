@@ -14,13 +14,11 @@ String pass_STA = "XXXXXXXXXX";
 
 String email = "XXXXXXX@XXXXXXXX.com";
 String email_pass = "XXXXXXXXXXXX";
-
+*/
 #define API_KEY "XXXXXXXXXXXXXXXX"
 #define DATABASE_URL "https://XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.firebasedatabase.app/"
-*/
 
-#define API_KEY "AIzaSyAHQNOtr22VKWIAfQYVHJ9qAl1XkrrB9hI"
-#define DATABASE_URL "https://kaya-smart-home-default-rtdb.europe-west1.firebasedatabase.app/"
+
 
 /////////////////////////////////////////////// Seriport Değişkenleri
 
